@@ -545,6 +545,75 @@ input[type=range]{width:130px;accent-color:var(--leaf)}
 /* DEC-028: link próprio no painel de tela cheia do iPhone */
 .fs-link{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
 .fs-link code{font-size:12.5px;background:var(--chip);padding:4px 8px;border-radius:8px;color:var(--pine);word-break:break-all}
+/* pedido do jogador (v0.19.0): telas do menu (Escolha sua terra, mundos, cidades salvas) centradas na altura; em tela baixa a margem some e a página rola normalmente */
+#maps,.overlay-page{display:flex;flex-direction:column}
+.maps-wrap{margin:auto}
+
+/* ===== DEC-029: tutorial ===== */
+/* Bem-vindo: mesmo fundo escuro do aviso de girar o celular, cartão claro no meio */
+#tutWelcome{position:fixed;inset:0;z-index:35;display:grid;place-items:center;padding:24px max(20px,env(safe-area-inset-right,0px)) 24px max(20px,env(safe-area-inset-left,0px));background:rgba(12,22,18,.72);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.tut-wcard{max-width:420px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;background:var(--panel-solid);border-radius:24px;box-shadow:var(--shadow);padding:24px 22px 14px;animation:tutEntra .45s cubic-bezier(.2,.9,.3,1.2)}
+.tut-wcard h2{margin:0;font-family:var(--display);font-weight:800;font-size:28px;line-height:1.1}
+.tut-wcard p{margin:0 0 6px;font-size:15px;line-height:1.5;color:var(--muted)}
+.tut-wcard .girar-fica{color:var(--pine)}
+/* abertura: faixas de cinema, legenda e o resto da interface escondido */
+body.tut-cine #hud,body.tut-cine #tray,body.tut-cine #cam,body.tut-cine #hint,body.tut-cine #toast,body.tut-cine #panel{visibility:hidden}
+#tutIntro{position:fixed;inset:0;z-index:30;pointer-events:none}
+.tut-faixa{position:absolute;left:0;right:0;height:12vh;background:#0c1612;animation:tutFaixa .8s ease-out both}
+.tut-faixa.cima{top:0;transform-origin:top}.tut-faixa.baixo{bottom:0;transform-origin:bottom}
+@keyframes tutFaixa{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+#tutCap{position:absolute;left:50%;bottom:calc(12vh + 22px);transform:translateX(-50%);width:min(760px,calc(100vw - 40px));margin:0;text-align:center;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.55),0 1px 2px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:6px;opacity:0}
+#tutCap b{font-family:var(--display);font-weight:800;font-size:clamp(22px,3.4vw,38px);line-height:1.1}
+#tutCap span{font-size:clamp(14px,1.7vw,19px);font-weight:600;opacity:.95}
+#tutCap.on{animation:tutFala 4.6s ease both}
+@keyframes tutFala{0%{opacity:0;transform:translate(-50%,12px)}12%,84%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-6px)}}
+#tutIntroSkip{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(12vh - 46px);pointer-events:auto;color:var(--ink-on-dark);font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;background:rgba(255,255,255,.14)}
+#tutIntroSkip:hover{background:rgba(255,255,255,.24)}
+/* cartão do passo: à esquerda, logo abaixo do topo medido (--hud-b), sem cobrir a bandeja (--tray-h) */
+#tutCard{position:fixed;z-index:7;left:max(16px,env(safe-area-inset-left,0px));top:calc(var(--hud-b,120px) + 12px);width:min(330px,calc(100vw - 32px));max-height:calc(100% - var(--hud-b,120px) - var(--tray-h,150px) - 46px);overflow:auto;background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:20px;box-shadow:var(--shadow);padding:14px 16px 10px;display:flex;flex-direction:column;gap:7px}
+#tutCard.entra{animation:tutEntra .4s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes tutEntra{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+.tut-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tut-premio{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:800;color:#1f7a3a;background:#dff0d8;border-radius:10px;padding:3px 8px}
+.tut-premio svg.i{width:14px;height:14px}
+.tut-prog{height:5px;border-radius:3px;background:var(--chip);overflow:hidden}
+.tut-prog i{display:block;height:100%;background:var(--leaf);border-radius:3px;transition:width .5s}
+#tutT{margin:2px 0 0;font-family:var(--display);font-weight:800;font-size:20px;line-height:1.15}
+#tutX{margin:0;font-size:14px;line-height:1.5}
+#tutLista{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+#tutLista li{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--muted)}
+#tutLista li svg.i{width:15px;height:15px;color:var(--sun-deep)}
+#tutLista li.ok{color:var(--leaf-deep)}#tutLista li.ok svg.i{color:var(--leaf)}
+#tutLista li.meta{font-size:12px;font-weight:500;padding-left:22px}
+.tut-acts{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:2px}
+.tut-acts .btn{flex:none;padding:9px 14px}
+.tut-link{font-size:12.5px;font-weight:700;color:var(--muted);padding:8px 8px;text-decoration:underline;text-underline-offset:3px}
+.tut-link:hover{color:var(--pine)}
+#tutCard.feito{box-shadow:0 0 0 3px var(--leaf),var(--shadow)}
+#tutCard.feito #tutNum{color:var(--leaf-deep)}
+/* destaque piscando em volta do botão certo (não pega clique) */
+#tutSpot{position:fixed;z-index:8;pointer-events:none;border-radius:16px;border:3px solid var(--sun);box-shadow:0 0 0 4px rgba(242,182,50,.35),0 0 24px rgba(242,182,50,.7);animation:tutPisca 1.1s ease-in-out infinite}
+@keyframes tutPisca{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.05)}}
+/* marca no mapa: seta quicando com o rótulo, presa ao chão pela câmera */
+#tutMark{position:fixed;left:0;top:0;z-index:3;pointer-events:none;display:flex;flex-direction:column;align-items:center;margin:-74px 0 0 -60px;width:120px}
+#tutMark span{background:var(--pine);color:var(--ink-on-dark);font-size:12px;font-weight:800;border-radius:10px;padding:4px 9px;white-space:nowrap;box-shadow:var(--shadow)}
+#tutMark span:empty{display:none}
+#tutMark i{width:0;height:0;border-left:13px solid transparent;border-right:13px solid transparent;border-top:20px solid var(--sun);margin-top:4px;filter:drop-shadow(0 3px 3px rgba(0,0,0,.3));animation:tutQuica .9s ease-in-out infinite}
+@keyframes tutQuica{0%,100%{transform:translateY(0)}50%{transform:translateY(9px)}}
+.tut-confete{position:absolute;top:-14px;width:9px;height:14px;border-radius:2px;animation:tutConfete 2.4s ease-in both}
+@keyframes tutConfete{to{transform:translate(var(--gx,0),105vh) rotate(720deg)}}
+/* celular deitado e telas baixas: cartão menor */
+@media (pointer:coarse) and (max-height:520px),(max-width:640px){
+  #tutCard{width:min(270px,calc(100vw - 32px));padding:10px 12px 6px;gap:5px;border-radius:16px;top:calc(var(--hud-b,100px) + 8px)}
+  #tutT{font-size:16px}#tutX{font-size:12.5px;line-height:1.42}#tutLista li{font-size:12px}
+  .tut-acts .btn{padding:7px 12px;font-size:13px}.tut-link{font-size:11.5px;padding:6px}
+  .tut-wcard{padding:16px 16px 8px;gap:7px}.tut-wcard h2{font-size:22px}.tut-wcard p{font-size:13px;line-height:1.4}
+}
+/* DEC-029: em tela baixa o texto do passo rola, mas os botões do cartão ficam sempre à vista */
+.tut-acts{position:sticky;bottom:-10px;margin-bottom:-10px;padding:4px 0 8px;background:var(--panel-solid);border-radius:0 0 14px 14px}
+@media (pointer:coarse) and (max-height:520px),(max-width:640px){.tut-acts{bottom:-6px;margin-bottom:-6px;padding-bottom:6px}}
+.tut-acts{margin-inline:-16px;padding-inline:12px}
+@media (pointer:coarse) and (max-height:520px),(max-width:640px){.tut-acts{margin-inline:-12px;padding-inline:8px}}
 </style>
 <canvas id="gl" aria-label="Vale em 3D"></canvas>
 <div id="fx"></div>
@@ -636,6 +705,7 @@ input[type=range]{width:130px;accent-color:var(--leaf)}
     <div class="pills">
       <button class="pill" id="pillSound"><span data-i="sound"></span><span id="pillSoundTxt">Som ligado</span></button>
       <button class="pill" id="pillFull" hidden><span data-i="expand"></span><span id="pillFullTxt">Tela cheia</span></button>
+      <button class="pill" id="pillTut"><span data-i="play"></span>Tutorial</button>
       <button class="pill" id="pillGfx"><span data-i="sparkle"></span><span id="pillGfxTxt">Gráficos: alto</span></button>
       <span class="pills-redes">
       <a class="pill pill-ico" id="lnkYoutube" href="https://www.youtube.com/@brazukacity3d" target="_blank" rel="noopener" aria-label="YouTube do Brazuka City" title="YouTube"><span data-i="video"></span></a>
@@ -683,6 +753,32 @@ input[type=range]{width:130px;accent-color:var(--leaf)}
   <p id="loadTip">Dica: a chuva faz todas as plantações crescerem mais rápido.</p>
 </section>
 
+<!-- DEC-029: tutorial (Bem-vindo, abertura de cinema, cartão do passo, destaque e marca no mapa) -->
+<div id="tutWelcome" hidden role="dialog" aria-modal="true" aria-labelledby="tutWT">
+  <div class="tut-wcard">
+    <span class="eyebrow">Primeira vez aqui?</span>
+    <h2 id="tutWT">Bem-vindo a Brazuka City!</h2>
+    <p>Construa sua cidade brasileira do zero: ruas, casas, energia, comércio e plantações. Em uns 10 minutos, o tutorial mostra para que serve cada botão e cada construção, e paga a cada passo.</p>
+    <button class="big primary" id="tutGo"><b>Começar o tutorial</b><small>Cidade nova, com abertura e passo a passo</small></button>
+    <button class="girar-fica" id="tutNo">Já sei jogar</button>
+  </div>
+</div>
+<div id="tutIntro" hidden>
+  <div class="tut-faixa cima"></div><div class="tut-faixa baixo"></div>
+  <p id="tutCap" aria-live="polite"></p>
+  <button id="tutIntroSkip">Pular abertura<span data-i="ff"></span></button>
+</div>
+<div id="tutSpot" hidden aria-hidden="true"></div>
+<div id="tutMark" hidden aria-hidden="true"><span id="tutMarkTxt"></span><i></i></div>
+<aside id="tutCard" hidden aria-live="polite">
+  <div class="tut-top"><span class="eyebrow" id="tutNum">Passo 1</span><span class="tut-premio" id="tutPremio"></span></div>
+  <div class="tut-prog"><i id="tutBar"></i></div>
+  <h3 id="tutT"></h3>
+  <p id="tutX"></p>
+  <ul id="tutLista" hidden></ul>
+  <div class="tut-acts"><button class="btn dark" id="tutNext" hidden>Entendi</button><button class="tut-link" id="tutPula">Pular passo</button><button class="tut-link" id="tutSair">Sair do tutorial</button></div>
+</aside>
+
 <!-- celular em pé: o jogo pede para virar (deitado cabe mais mapa e os botões ficam à vista) -->
 <div id="girar" hidden role="dialog" aria-modal="true" aria-labelledby="girarT">
   <div class="girar-card">
@@ -708,15 +804,18 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), lerp=(a,b,t)=>a+(b-a)*t;
 const pick=(r,a)=>a[Math.floor(r()*a.length)];
 function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
-const PREFS_V=2;
+const PREFS_V=3;
 const prefs=Object.assign({music:true,sfx:false,shadows:true,grid:true,vol:.8,gfx:'alto',luz:'dia',mute:false,trayMin:false},store.get('rv:prefs',{}));
 // v0.5: efeitos e ambiente (sons e chuva na tela) desligados e "Sempre de dia" ligado por padrão, também para quem já jogava (só uma vez)
-if((prefs.pv||1)<PREFS_V){prefs.sfx=false;prefs.luz='dia';prefs.pv=PREFS_V;store.set('rv:prefs',prefs)}
+if((prefs.pv||1)<2){prefs.sfx=false;prefs.luz='dia'}
+// v0.19 (DEC-029): todo jogador vê o Bem-vindo e o convite para o tutorial uma vez
+if((prefs.pv||1)<3)prefs.tutVisto=false;
+if((prefs.pv||1)<PREFS_V){prefs.pv=PREFS_V;store.set('rv:prefs',prefs)}
 const savePrefs=()=>store.set('rv:prefs',prefs);
 const fmt=n=>Math.round(n).toLocaleString('pt-BR');
 // v0.17 (DEC-021): a moeda do jogo é o real
 const brl=n=>(n<0?'−':'')+'R$ '+fmt(Math.abs(n));
-const SAVE_KEY='rv:save', SAVE_VERSION=7, CITIES_KEY='rv:cidades', CITIES_MAX=12;
+const SAVE_KEY='rv:save', SAVE_VERSION=8, CITIES_KEY='rv:cidades', CITIES_MAX=12;
 // BUG-011: todo texto que vem do jogador ou do save passa por esc() antes de ir para innerHTML
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // BUG-009: se algo quebra antes do menu aparecer (sem WebGL, three.js não carregou), mostra uma mensagem em vez de travar no carregamento
@@ -2498,7 +2597,8 @@ function reserveFootprint(T,isFree,isRoadT,x,z,id){let best=null;for(let q=0;q<4
     for(let ox=0;ox<fw;ox++)for(let oz=0;oz<fd;oz++){const ax=x-ox,az=z-oz;if(ax<1||az<1||ax+fw>N-1||az+fd>N-1)continue;const a=idx(ax,az);const tiles=fpTiles(a,id,rot);
       if(!tiles||!tiles.every(j=>T[j]!==1&&isFree(j)))continue;const sc=fpSide(a,id,rot,null,q).filter(isRoadT).length*10+fpPerimeter(a,id,rot).filter(isRoadT).length;
       if(!best||sc>best.sc)best={a,rot,tiles,sc}}}return best}
-function genMap(type,seed){const S=START;
+// DEC-029: o kit inicial (prefeitura, casas, energia, trigo) só entra com {kit:true}; o jogo de verdade começa com o vale vazio e a estrada de acesso
+function genMap(type,seed,o){const S=START;o=o||{};
   const r=mulberry(seed),nz=noise2(seed%997+1),nz2=noise2(seed%613+7);
   const T=new Uint8Array(N*N);
   const blob=(cx,cz,rad,ns)=>{for(let z=0;z<S;z++)for(let x=0;x<S;x++){const d=Math.hypot(x+.5-cx,(z+.5-cz)*1.12);const e=rad+(nz(x*.22,z*.22)-.5)*ns;if(d<e)T[I0(x,z)]=1;else if(d<e+1.3&&T[I0(x,z)]!==1)T[I0(x,z)]=2}};
@@ -2520,8 +2620,10 @@ function genMap(type,seed){const S=START;
   for(let z=0;z<S;z++){const i=I0(col,z);if(land(i)){used.add(i);roadSet.add(i);items.push([i,'estrada'])}}
   for(let x=2;x<S-2;x++){const i=I0(x,row);if(land(i)&&!used.has(i)){used.add(i);roadSet.add(i);items.push([i,'estrada'])}}
   // Kit inicial. BUG-012: turbina + solar + moinho cobrem a noite e a neblina. BUG-018: comentários sempre em linha própria.
-  put(col+1,row+1,'prefeitura');put(col-2,row+1,'turbina');put(col+2,row-2,'solar');put(col-2,row-1,'moinho');put(col-1,row+1,'chale');put(col+1,row-1,'chale');put(col-1,row-1,'casa');
-  for(let a=0;a<3;a++)for(let b=0;b<3;b++)put(col-6+a,row+2+b,'trigo');
+  if(o.kit){put(col+1,row+1,'prefeitura');put(col-2,row+1,'turbina');put(col+2,row-2,'solar');put(col-2,row-1,'moinho');put(col-1,row+1,'chale');put(col+1,row-1,'chale');put(col-1,row-1,'casa');
+    for(let a=0;a<3;a++)for(let b=0;b<3;b++)put(col-6+a,row+2+b,'trigo')}
+  // DEC-029: sem o kit, a área do cruzamento fica livre de árvores para os primeiros passos
+  else for(let z=row-5;z<=row+5;z++)for(let x=col-5;x<=col+5;x++)used.add(I0(x,z));
   // árvores, coqueiros na areia, ipês e flores
   for(let z=1;z<S-1;z++)for(let x=1;x<S-1;x++){const i=I0(x,z);if(!land(i)||used.has(i))continue;const f=nz2(x*.17,z*.17);
     if(T[i]===2){if(r()<(type==='mar'?.16:.07))put(x,z,'coqueiro');else if(r()<.05)put(x,z,'arbusto');continue}
@@ -2814,7 +2916,7 @@ function worldPlanner(m,seed){const S=START;
 const HOME_MIX=['chale','casa','casa','sobrado'];
 
 function genWorld(id){const S=START;const w=WORLDS[id];if(!w)throw new Error('mundo desconhecido: '+id);
-  const m=genMap(w.type,w.seed);if(id==='classico')decorateDemo(m,w.seed);const P=worldPlanner(m,w.seed);const{col:c,row:rw,r,T,used}=P;
+  const m=genMap(w.type,w.seed,{kit:true});if(id==='classico')decorateDemo(m,w.seed);const P=worldPlanner(m,w.seed);const{col:c,row:rw,r,T,used}=P;
   if(id==='classico'){P.nearRoad(c+3,rw+3,'escola');P.nearRoad(c-3,rw+3,'posto');P.nearRoad(c+2,rw-3,'parque');P.nearRoad(c-4,rw-3,'playground');P.power(c+8,rw-8)}
   if(id==='cafe'){
     P.road(2,rw-8,S-3,rw-8,'trilha');P.road(2,rw+8,S-3,rw+8,'trilha');P.road(c-11,2,c-11,S-3,'trilha');P.road(c+10,2,c+10,S-3,'estrada');
@@ -4230,9 +4332,9 @@ function priceOf(d){return Math.round(d.cost*(W?modeOf().custo:1))}
 // títulos: moradores e (nos altos) felicidade. presente = dinheiro da prefeitura ao subir
 const TITLES=[
   {id:'vila',nome:'Vila',pop:0,feliz:0,presente:0,
-    lib:'trilha estrada rua caminho pinheiro arvore ipe coqueiro arbusto flores lago aterro trigo milho horta girassol soja chale casa feira padaria cafe moinho turbina poste caixa banco praca parque playground celeiro galinheiro'},
+    lib:'trilha estrada rua caminho pinheiro arvore ipe coqueiro arbusto flores lago aterro trigo milho horta girassol soja chale casa feira padaria cafe moinho turbina solar poste caixa banco praca parque playground celeiro galinheiro'},
   {id:'povoado',nome:'Povoado',pop:200,feliz:0,presente:1000,
-    lib:'sobrado mercado pizzaria sorveteria farmacia solar posto creche escola curral ovelhas estufa silos fonte coreto quadra estatua armazem serraria pomar cana vinhedo cafe_pe tulipas lavanda'},
+    lib:'sobrado mercado pizzaria sorveteria farmacia posto creche escola curral ovelhas estufa silos fonte coreto quadra estatua armazem serraria pomar cana vinhedo cafe_pe tulipas lavanda'},
   {id:'cidade_pequena',nome:'Cidade pequena',pop:600,feliz:0,presente:3000,
     lib:'predio supermercado cinema gasolina fabrica alimentos reciclagem bombeiros policia correios biblioteca haras tratores piscina prefeitura igreja obelisco farol trilho passagem estacao'},
   {id:'cidade',nome:'Cidade',pop:1500,feliz:65,presente:8000,
@@ -4323,16 +4425,21 @@ function startGame(state,fresh){
   ['#menu','#maps','#worlds','#loads'].forEach(q=>$(q).hidden=true);['#hud','#tray','#hint','#cam'].forEach(s=>$(s).hidden=false);
   if(!W.own)W.own=startOwn();refreshLand();clampCamTarget();
   $('#cityName').textContent=W.name;setSpeed(W.speed??1);setTool('look');renderTabs();renderItems();updateHud();
-  if(fresh){news(`Bem-vindo a ${W.name}! A prefeitura já está de pé.`);
+  // DEC-029: cidade nova pode começar vazia; a mensagem segue o que o jogador encontra
+  if(fresh){const temKit=W.b.some(o=>o&&o.id==='prefeitura');news(temKit?`Bem-vindo a ${W.name}! A prefeitura já está de pé.`:`Bem-vindo a ${W.name}! O vale é todo seu: comece pela rua.`);
     // BUG-027: a dica agendada não aparece se o jogador já voltou ao menu (ela cobria os botões)
-    setTimeout(()=>{if(game.active)toast('Construa casas ao lado das estradas e plante campos para ganhar dinheiro.')},900)}
+    if(!W.tut)setTimeout(()=>{if(game.active&&!W.tut)toast('Construa casas ao lado das estradas e plante campos para ganhar dinheiro.')},900)}
   else toast(`De volta a ${W.name}.`);
+  // DEC-029: o tutorial começa (ou continua do passo salvo) ao abrir a cidade dele
+  if(W.tut&&!W.tut.done&&typeof tutStart==='function')tutStart(fresh);else if(typeof tutStop==='function')tutStop();
 }
-function toMenu(){if(game.carry)cancelCarry();game.pending=-1;if(game.active)saveGame(false);game.active=false;cam.menu=true;closePanel();hideTooltip();$('#costTag').hidden=true;setPreview([]);
+function toMenu(){
+  // DEC-029: o tutorial some junto com a cidade
+  if(typeof tutStop==='function')tutStop();if(game.carry)cancelCarry();game.pending=-1;if(game.active)saveGame(false);game.active=false;cam.menu=true;closePanel();hideTooltip();$('#costTag').hidden=true;setPreview([]);
   ['#hud','#tray','#hint','#cam','#toast'].forEach(s=>$(s).hidden=true);pops.forEach(p=>p.el.remove());pops.length=0;$('#menu').hidden=false;refreshMenu()}
 function serialize(){return{v:SAVE_VERSION,id:W.id,world:W.world||null,name:W.name,type:W.type,seed:W.seed,money:Math.round(W.money),hours:W.hours,speed:W.speed,mode:W.mode||'normal',title:W.title|0,own:Array.from(W.own||startOwn()).join(''),metas:(W.metas||[]).slice(),arr:+(W._arrAcc||0).toFixed(2),
   T:Array.from(W.T).join(''),b:W.b.map((o,i)=>o?[i,o.id,+o.v.toFixed(5),+(o.rot||0).toFixed(3),+(o.age||0).toFixed(2),o.occ||0].concat(o.sz===1?[1]:[]):null).filter(Boolean),
-  stats:W.stats,news:W.news.slice(0,30),cam:[+cam.target.x.toFixed(2),+cam.target.z.toFixed(2),+cam.rotTarget.toFixed(3),+cam.zoomTarget.toFixed(3),+cam.elTarget.toFixed(3)]}}
+  stats:W.stats,news:W.news.slice(0,30),cam:[+cam.target.x.toFixed(2),+cam.target.z.toFixed(2),+cam.rotTarget.toFixed(3),+cam.zoomTarget.toFixed(3),+cam.elTarget.toFixed(3)],tut:W.tut?{s:W.tut.step|0,d:!!W.tut.done}:null}}
 // BUG-015: o save é validado antes de virar mundo; um arquivo quebrado nunca derruba o jogo
 function validSave(s){return!!(s&&typeof s==='object'&&MAPS[s.type]&&typeof s.T==='string'&&(s.T.length===N*N||s.T.length===START*START)&&/^[012]+$/.test(s.T)&&Array.isArray(s.b)&&isFinite(s.money)&&isFinite(s.hours))}
 // v1→v2: validava o clima salvo. v2→v3: o clima e a hora passaram a vir de Brasília ao vivo, então o clima sai do save
@@ -4352,9 +4459,11 @@ function migrateSave(s){if(!s.v||s.v<3){delete s.weather;s.v=3}if(s.v<4){if(!s.i
   if(s.v<7){if(s.T.length===START*START){const T=new Uint8Array(N*N);for(let z=0;z<START;z++)for(let x=0;x<START;x++)T[I0(x,z)]=+s.T[z*START+x]||0;
       const fora=[];genOuter(T,fora,MAPS[s.type]?s.type:'lago',(s.seed|0)||1);s.T=Array.from(T).join('');
       s.b=s.b.filter(Array.isArray).map(r=>{const i=r[0];return[I0(i%START,(i/START)|0)].concat(r.slice(1))}).concat(fora.map(([i,id])=>[i,id,Math.random(),0,0,0]));}
-    delete s.own;s.v=7}return s}
+    delete s.own;s.v=7}
+  // v7→v8: cidade do tutorial (DEC-029); cidades antigas não têm tutorial
+  if(s.v<8){if(!s.tut||typeof s.tut!=='object')s.tut=null;s.v=8}return s}
 function newCityId(){return Date.now().toString(36)+Math.floor(Math.random()*1e6).toString(36)}
-function deserialize(s){if(!validSave(s))throw new Error('save inválido');s=migrateSave(s);const w=newState(s.type,s.seed,s.name);Object.assign(w,{id:String(s.id||newCityId()).slice(0,40),world:WORLDS[s.world]?s.world:null,money:s.money,hours:s.hours,speed:s.speed??1,mode:MODES[s.mode]?s.mode:'normal',title:clamp(s.title|0,0,TITLES.length-1),metas:Array.isArray(s.metas)?s.metas.filter(x=>typeof x==='string'):[],_arrAcc:+s.arr||0,own:typeof s.own==='string'&&s.own.length===NBK*NBK&&/^[01]+$/.test(s.own)?Uint8Array.from(s.own.split('').map(Number)):startOwn(),stats:Object.assign(w.stats,s.stats||{}),news:s.news||[],cam:s.cam});
+function deserialize(s){if(!validSave(s))throw new Error('save inválido');s=migrateSave(s);const w=newState(s.type,s.seed,s.name);Object.assign(w,{id:String(s.id||newCityId()).slice(0,40),world:WORLDS[s.world]?s.world:null,money:s.money,hours:s.hours,speed:s.speed??1,mode:MODES[s.mode]?s.mode:'normal',title:clamp(s.title|0,0,TITLES.length-1),metas:Array.isArray(s.metas)?s.metas.filter(x=>typeof x==='string'):[],_arrAcc:+s.arr||0,own:typeof s.own==='string'&&s.own.length===NBK*NBK&&/^[01]+$/.test(s.own)?Uint8Array.from(s.own.split('').map(Number)):startOwn(),stats:Object.assign(w.stats,s.stats||{}),news:s.news||[],cam:s.cam,tut:s.tut&&typeof s.tut==='object'?{step:clamp(s.tut.s|0,0,99),done:!!s.tut.d}:null});
   w.T=Uint8Array.from(String(s.T).split('').map(Number));for(const r of s.b){if(!Array.isArray(r))continue;const[i,id,v,rot,age,occ,sz]=r;if(ITEMS[id]&&i>=0&&i<N*N){w.b[i]={id,v:+v||0,rot:+rot||0,age:+age||0,occ:+occ||0};if(sz===1)w.b[i].sz=1}}fixFootprints(w);return w}
 function saveGame(silent){if(!W||!game.active)return false;const data=serialize();const ok=store.set(SAVE_KEY,data)&&saveCitySlot(data);
   if(!ok){if(!game._warnedSave||!silent){game._warnedSave=true;toast('Não foi possível salvar neste navegador. Ele pode estar em modo privado ou sem espaço.',true)}return false}
@@ -4380,10 +4489,12 @@ function newWorld(id){const wd=WORLDS[id];const m=genWorld(id);const w=newState(
   // mundo pronto já começa no título que os moradores dele valem
   w.title=titleForPop(m.items.reduce((a,[,id])=>a+(ITEMS[id].home?Math.floor(ITEMS[id].home*.6):0),0));applyGen(w,m);
   news(`Você chegou a ${m.name}. ${wd.desc}`);saveGame(true)}
-function newGame(type,seed,mode){const m=genMap(type,seed);const w=newState(type,seed,null,mode);w.T=m.T;for(const[i,id]of m.items){w.b[i]={id,v:Math.random(),rot:0,age:ITEMS[id].crop?Math.random()*10:0,occ:ITEMS[id].home?Math.floor(ITEMS[id].home*.6):0}}
+function newGame(type,seed,mode,o){o=o||{};const m=genMap(type,seed,{kit:!!o.kit});const w=newState(type,seed,null,mode);w.T=m.T;for(const[i,id]of m.items){w.b[i]={id,v:Math.random(),rot:0,age:ITEMS[id].crop?Math.random()*10:0,occ:ITEMS[id].home?Math.floor(ITEMS[id].home*.6):0}}
   W=w;for(const[i,id]of m.items){const d=ITEMS[id];if(!d.road&&!d.crop&&!isNatureId(id))w.b[i].rot=m.rots&&m.rots.has(i)?m.rots.get(i):faceRoad(i,0)}
   // BUG-036: m.col/m.row são da área inicial; sem o OFF a câmera nascia na borda da cidade
-  w._center=[m.col+OFF-HALF+.5,m.row+OFF-HALF+.5];w.stats.dayStart=w.money;startGame(w,true)}
+  w._center=[m.col+OFF-HALF+.5,m.row+OFF-HALF+.5];w.stats.dayStart=w.money;
+  // DEC-029: cidade do tutorial guarda em que passo o jogador está
+  if(o.tutorial)w.tut={step:0,done:false};startGame(w,true)}
 
 /* ---- js/10-entrada.js ---- */
 'use strict';
@@ -5100,6 +5211,174 @@ if(portrait.addEventListener)portrait.addEventListener('change',syncGirar);else 
 addEventListener('resize',syncGirar);
 syncFullBtn();syncGirar();
 
+/* ---- js/11b-tutorial.js ---- */
+'use strict';
+/* ================= Tutorial (DEC-029) =================
+   Primeira visita: cartão de Bem-vindo. O tutorial abre uma cidade vazia, passa uma abertura de cinema
+   (faixas pretas, legendas e a câmera passeando pelo vale) e segue em passos. Cada passo tem um cartão
+   com a explicação, um destaque piscando no botão certo e um objetivo que o jogo confere sozinho.
+   Cada passo concluído rende TUT_PREMIO; o final rende TUT_FINAL. O passo fica no save (W.tut). */
+const TUT_PREMIO=200,TUT_FINAL=1000,TUT_SEED=20261117,TUT_INTRO_S=4.6;
+const tut={on:false,step:-1,timer:0,raf:0,intro:null,cam0:null,checks:{},seenCarry:false,tour:0,tourT:0,feito:0,alvoAnt:'',sair:0};
+const _tuV=new THREE.Vector3();
+function tutCount(ids){let n=0;for(let i=0;i<N*N;i++){const s=W.b[i];if(s&&ids.includes(s.id))n++}return n}
+// moradia só conta se tiver rua ao lado (é o que faz a família se mudar)
+function tutLigadas(ids){let n=0;for(let i=0;i<N*N;i++){const s=W.b[i];if(s&&ids.includes(s.id)&&hasRoadAccess(i))n++}return n}
+function tutXZ(i){return[(i%N)-HALF+.5,((i/N)|0)-HALF+.5]}
+// ponto do mapa onde vale a pena construir: no meio das ruas que o jogador já fez, ou no cruzamento inicial
+function tutPerto(ids){let sx=0,sz=0,n=0;for(let i=0;i<N*N;i++){const s=W.b[i];if(s&&ids.includes(s.id)){const[x,z]=tutXZ(i);sx+=x;sz+=z;n++}}
+  return n?[sx/n,sz/n]:(W._center||[cam.target.x,cam.target.z])}
+const tutVisivel=q=>{const e=typeof q==='string'?$(q):q;if(!e)return false;const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden'};
+// a aba e o item certos na bandeja: destaca a aba até o jogador abrir, depois o item; no celular, o botão Construir aqui
+function tutAlvoItem(ids){ids=[].concat(ids);const d=ITEMS[ids[0]];if(prefs.trayMin)return'#btnFold';
+  const t=game.tool;if(t.mode==='build'&&ids.includes(t.item))return TOUCH&&tutVisivel('#actConfirm')?'#actConfirm':null;
+  if(game.cat!==d.cat)return`.tab[data-cat="${d.cat}"]`;return`.item[data-id="${ids[0]}"]`}
+const tutCmd=(touch,mouse)=>TOUCH?touch:mouse;
+const TUT_TOUR=[
+  ['.stat.money','<b>Caixa da cidade</b>, em reais. Entra dinheiro de impostos, comércio e colheitas; sai com obras e a manutenção do dia.'],
+  ['.stat.time','<b>Hora de Brasília ao vivo</b>, com a estação e o clima de verdade. De noite as luzes acendem e a chuva faz as plantações crescerem mais rápido.'],
+  ['#pop','<b>Moradores</b> da cidade. Eles pagam impostos e compram no comércio.'],
+  ['#energyStat','<b>Energia</b> usada / gerada. Vermelho quer dizer que falta energia.'],
+  ['#happy','<b>Felicidade</b>. Cidade feliz recebe mais famílias.'],
+  ['#titleStat','<b>Título</b> da cidade e quanto falta para o próximo.']];
+const TUT_PASSOS=[
+  {id:'camera',t:'Olhe em volta',
+    x:()=>'Este é o seu vale, por enquanto só com a estrada de acesso. '+tutCmd('<b>Arraste com um dedo</b> para andar pelo mapa, <b>afaste ou junte dois dedos</b> para o zoom e <b>gire com dois dedos</b> para ver de outro lado.','<b>Arraste com o botão esquerdo</b> para andar, use a <b>roda do mouse</b> para o zoom e <b>arraste com o botão direito</b> para girar e inclinar. As teclas Q e E também giram.')+' A bússola leva de volta à vista inicial.',
+    ini(){tut.cam0={x:cam.target.x,z:cam.target.z,zoom:cam.zoomTarget,rot:cam.rotTarget,el:cam.elTarget};tut.checks={}},
+    lista:()=>[['Andar pelo mapa',tut.checks.mover],['Dar zoom',tut.checks.zoom],['Girar ou inclinar',tut.checks.girar]],
+    ok(){const c=tut.cam0,k=tut.checks;if(!c)return false;if(Math.hypot(cam.target.x-c.x,cam.target.z-c.z)>2)k.mover=1;if(Math.abs(Math.log(cam.zoomTarget/c.zoom))>.18)k.zoom=1;
+      if(Math.abs(cam.rotTarget-c.rot)>.35||Math.abs(cam.elTarget-c.el)>.15)k.girar=1;return(k.mover|0)+(k.zoom|0)+(k.girar|0)>=2},
+    meta:'Faça 2 dos 3',alvo:()=>'#cam .cam-pad'},
+  {id:'rua',t:'A primeira rua',
+    x:()=>'Toda cidade começa pela rua. Na bandeja, abra <b>Estradas</b> e escolha <b>Rua da cidade</b> ('+brl(24)+' por lote): tem calçada e faixa, e os carros andam mais rápido. A <b>Estrada rural</b> é mais barata e serve para ligar fazendas. '+tutCmd('<b>Arraste o dedo no chão</b>','<b>Clique e arraste no chão</b>')+' para traçar a rua saindo da estrada que já existe.',
+    lista:()=>{const n=tutCount(['rua']);return[[`Lotes de rua: ${Math.min(n,5)} de 5`,n>=5]]},
+    ok:()=>tutCount(['rua'])>=5,alvo:()=>tutAlvoItem('rua'),mundo:()=>W._center,marca:'Comece aqui'},
+  {id:'casa',t:'Casas para as famílias',
+    x:()=>'Agora as moradias. Em <b>Moradias</b>, a <b>Casa</b> ('+brl(220)+') recebe até 7 moradores e o <b>Chalé</b> ('+brl(120)+'), até 4. Toda moradia precisa de <b>rua ao lado</b>: sem rua, aparece um aviso em cima dela e ninguém se muda. A frente vira sozinha para a rua; '+tutCmd('o botão <b>Girar</b> muda a frente. A obra aparece no meio da tela com uma cruz embaixo: arraste a cruz até o lugar e toque em <b>Construir aqui</b>.','a tecla <b>R</b> gira antes de clicar.'),
+    lista:()=>{const n=tutLigadas(['casa','chale']);return[[`Moradias ao lado da rua: ${Math.min(n,2)} de 2`,n>=2]]},
+    ok:()=>tutLigadas(['casa','chale'])>=2,alvo:()=>tutAlvoItem(['casa','chale']),mundo:()=>tutPerto(['rua']),marca:'Ao lado da rua'},
+  {id:'turbina',t:'Energia do vento',
+    x:()=>'Casa sem luz deixa a família triste. Em <b>Serviços</b>, a <b>Turbina eólica</b> ('+brl(550)+') gera 18 de energia <b>de dia e de noite</b>, e ainda mais com o vento da chuva. Uma turbina abastece umas 6 casas cheias. As pás giram mais rápido quando venta.',
+    lista:()=>[['Uma turbina eólica',tutCount(['turbina'])>=1]],ok:()=>tutCount(['turbina'])>=1,alvo:()=>tutAlvoItem('turbina')},
+  {id:'solar',t:'Energia do sol',
+    x:()=>'Os <b>Painéis solares</b> ('+brl(600)+', também em Serviços) ocupam 2×2 lotes e geram até 28 de energia com sol forte, perto do meio-dia. Nublado rende menos e de noite não gera nada. Por isso a turbina e os painéis trabalham juntos.',
+    lista:()=>[['Painéis solares',tutCount(['solar'])>=1]],ok:()=>tutCount(['solar'])>=1,alvo:()=>tutAlvoItem('solar')},
+  {id:'medidor',t:'O medidor de energia',info:()=>true,
+    x:()=>'No topo, o raio mostra a energia <b>usada / gerada</b>. Se a usada passar da gerada, o número fica vermelho, as casas recebem menos famílias e a felicidade cai. Sempre que a cidade crescer, confira aqui.',alvo:()=>'#energyStat'},
+  {id:'tempo',t:'O tempo e os moradores',
+    x:()=>'As famílias chegam aos poucos, de caminhão de mudança. O relógio do topo é o <b>horário de Brasília</b>, mas o ritmo da economia é seu: os botões <b>pausar, normal, rápido e muito rápido</b> mudam a velocidade da cidade'+tutCmd('','(teclas Espaço, 1, 2 e 3)')+'. Escolha o rápido e espere chegarem 3 moradores.',
+    lista:()=>{const p=W.stats.pop|0;return[['Economia rápida ou muito rápida',game.speed>=2||p>=3],[`Moradores: ${Math.min(p,3)} de 3`,p>=3]]},
+    ok:()=>(W.stats.pop|0)>=3,alvo:()=>game.speed<2?'#speeds':'#pop'},
+  {id:'comercio',t:'Comércio dá lucro',
+    x:()=>'Em <b>Comércio</b>, a <b>Feira livre</b> ('+brl(200)+') e a <b>Padaria</b> ('+brl(350)+') vendem para quem mora perto, e o dinheiro entra no caixa da cidade. Quanto mais moradores em volta, mais vendem. Construa uma das duas ao lado da rua, perto das casas.',
+    lista:()=>[['Uma feira ou padaria',tutCount(['feira','padaria'])>=1]],ok:()=>tutCount(['feira','padaria'])>=1,alvo:()=>tutAlvoItem(['feira','padaria']),mundo:()=>tutPerto(['casa','chale']),marca:'Perto das casas'},
+  {id:'campo',t:'Plantar e colher',
+    x:()=>'Plantação é colhida sozinha quando amadurece e rende dinheiro. Em <b>Campos</b>, escolha o <b>Trigo</b> ('+brl(8)+' por lote) e '+tutCmd('<b>arraste o dedo</b>','<b>arraste</b>')+' para cobrir uma área. Depois, em <b>Fazendas</b>, o <b>Moinho de vento</b> ('+brl(400)+') gera um pouco de energia e faz os campos num raio de 4 lotes crescerem 25% mais rápido. A chuva também acelera.',
+    lista:()=>{const n=tutCount(['trigo']);return[[`Lotes de trigo: ${Math.min(n,6)} de 6`,n>=6],['Um moinho de vento',tutCount(['moinho'])>=1]]},
+    ok:()=>tutCount(['trigo'])>=6&&tutCount(['moinho'])>=1,alvo:()=>tutCount(['trigo'])<6?tutAlvoItem('trigo'):tutAlvoItem('moinho')},
+  {id:'lazer',t:'Gente feliz fica',
+    x:()=>'A <b>felicidade</b> (a carinha no topo) decide quantas famílias aceitam morar na cidade. Em <b>Lazer</b>, a <b>Praça</b> ('+brl(120)+') deixa todo mundo mais feliz. Construa uma perto das casas.',
+    lista:()=>[['Uma praça',tutCount(['praca'])>=1]],ok:()=>tutCount(['praca'])>=1,alvo:()=>tutAlvoItem('praca'),mundo:()=>tutPerto(['casa','chale']),marca:'Perto das casas'},
+  {id:'painel',t:'O painel do topo',info:()=>true,
+    x:()=>'Cada número do topo conta uma parte da cidade. '+TUT_TOUR[tut.tour%TUT_TOUR.length][1],alvo:()=>TUT_TOUR[tut.tour%TUT_TOUR.length][0],tour:true},
+  {id:'numeros',t:'Números e diário',
+    x:()=>'O botão do <b>gráfico</b> abre as estatísticas: caixa e moradores ao longo do tempo, energia e de onde vem o dinheiro. O <b>jornal</b> ao lado é o diário do vale, com tudo o que aconteceu. Quando algo precisa de atenção, aparece um <b>aviso</b> no topo com o motivo e um botão para resolver. Abra as estatísticas.',
+    lista:()=>[['Abrir as estatísticas',panelKind==='stats']],ok:()=>panelKind==='stats',alvo:()=>panelKind==='stats'?null:'#btnStats'},
+  {id:'mover',t:'Mudou de ideia? Mova',
+    x:()=>'Na bandeja ficam as ferramentas: <b>Olhar</b>'+tutCmd('',' (Esc)')+' é o modo normal, <b>Mover</b>'+tutCmd('',' (M)')+' pega uma construção e leva para outro lugar, e <b>Remover</b>'+tutCmd('',' (X)')+' derruba o que estiver no caminho. Escolha Mover e '+tutCmd('toque','clique')+' numa construção para pegá-la.',
+    lista:()=>[['Escolher Mover',game.tool.mode==='move'||tut.seenCarry],['Pegar uma construção',tut.seenCarry]],ok:()=>tut.seenCarry,
+    alvo:()=>prefs.trayMin?'#btnFold':game.tool.mode!=='move'?'.mode[data-mode="move"]':null},
+  {id:'titulos',t:'Títulos e construções novas',info:()=>!tutVisivel('#titleStat'),
+    x:()=>'Sua cidade é uma <b>Vila</b>. Com 200 moradores ela vira <b>Povoado</b>, ganha um presente da prefeitura e libera construções novas. Item com cadeado mostra o título que falta.'+(tutVisivel('#titleStat')?' Abra o painel de títulos no topo.':''),
+    lista:()=>tutVisivel('#titleStat')?[['Abrir os títulos',panelKind==='titulos']]:[],ok:()=>panelKind==='titulos',alvo:()=>panelKind==='titulos'?null:'#titleStat'},
+  {id:'ajustes',t:'Som, gráficos e ajustes',
+    x:()=>'Em <b>Ajustes</b> ficam a música, os <b>efeitos e ambiente</b> (sons de obra e de colheita, passarinhos e chuva na tela; vêm desligados), o volume, <b>Sempre de dia</b>, as sombras e a grade de construção. Se o jogo ficar lento, desligue as sombras. Abra os Ajustes.',
+    lista:()=>[['Abrir os Ajustes',panelKind==='settings']],ok:()=>panelKind==='settings',alvo:()=>panelKind==='settings'?'#swSfx':'#btnSettings'},
+  {id:'fim',t:'Sua vila está de pé!',info:()=>true,fim:true,
+    x:()=>`Você aprendeu o básico: rua, casas, energia, comércio, campos e lazer. Agora é crescer ${esc(W.name)} até o Povoado e além. A prefeitura deixou um presente de <b>${brl(TUT_FINAL)}</b>. O tutorial pode ser repetido pelo botão Tutorial do menu.`}];
+
+/* ---------- Bem-vindo (primeira visita) ---------- */
+function tutBemVindo(){if(prefs.tutVisto)return;$('#tutWelcome').hidden=false;setTimeout(()=>{const b=$('#tutGo');if(b&&!$('#tutWelcome').hidden)b.focus()},50)}
+function tutNovaCidade(){prefs.tutVisto=true;savePrefs();$('#tutWelcome').hidden=true;audioInit();SFX.open();newGame('lago',TUT_SEED,'normal',{tutorial:true})}
+$('#tutGo').onclick=tutNovaCidade;
+$('#tutNo').onclick=()=>{prefs.tutVisto=true;savePrefs();$('#tutWelcome').hidden=true;SFX.click()};
+$('#pillTut').onclick=tutNovaCidade;
+
+/* ---------- Abertura de cinema ---------- */
+const TUT_FALAS=[
+  ['Este é o seu vale.','Por enquanto, só terra, água e uma estrada de acesso.'],
+  ['Cada rua, cada casa e cada plantação','vai ser escolha sua.'],
+  ['As famílias chegam quando encontram','casa perto da rua, energia e motivo para sorrir.'],
+  ['Vamos construir a primeira vila juntos, passo a passo.','A cada passo, a prefeitura deixa um dinheirinho no caixa.']];
+// câmera da abertura: começa baixa sobre o cruzamento, sobe mostrando o vale inteiro e pousa na vista de jogo
+const TUT_CAM=[[0,1.9,.42,-1.1],[.3,.62,.95,-.35],[.7,.75,.8,.15],[1,1.15,EL_DEF,0]];
+function tutIntro(){const c=W._center||[cam.target.x,cam.target.z];cam.target.set(c[0],0,c[1]);
+  const r0=cam.rotTarget,z1=cam.zoomTarget;tut.intro={t0:performance.now(),r0,z1,fala:-1,speed:game.speed};setSpeed(0);
+  const k=TUT_CAM[0];cam.rot=cam.rotTarget=r0+k[3];cam.zoom=cam.zoomTarget=k[1]*z1/1.15;cam.el=cam.elTarget=k[2];
+  document.body.classList.add('tut-cine');$('#tutIntro').hidden=false;$('#tutCard').hidden=true}
+function tutIntroFim(){const it=tut.intro;if(!it)return;tut.intro=null;document.body.classList.remove('tut-cine');$('#tutIntro').hidden=true;
+  cam.rotTarget=it.r0;cam.zoomTarget=it.z1;cam.elTarget=EL_DEF;setSpeed(it.speed||1);tutMostra()}
+// o tempo da abertura é o do relógio (não o dos quadros): em aparelho lento ela dura o mesmo
+function tutIntroPasso(){const it=tut.intro,t=(performance.now()-it.t0)/1000,tot=TUT_FALAS.length*TUT_INTRO_S,u=Math.min(1,t/tot);
+  let j=0;while(j<TUT_CAM.length-2&&u>TUT_CAM[j+1][0])j++;const a=TUT_CAM[j],b=TUT_CAM[j+1],v=clamp((u-a[0])/(b[0]-a[0]),0,1),e=v*v*(3-2*v);
+  cam.zoomTarget=(a[1]+(b[1]-a[1])*e)*it.z1/1.15;cam.elTarget=a[2]+(b[2]-a[2])*e;cam.rotTarget=it.r0+a[3]+(b[3]-a[3])*e;
+  const f=Math.min(TUT_FALAS.length-1,Math.floor(t/TUT_INTRO_S));
+  if(f!==it.fala){it.fala=f;const[x,y]=TUT_FALAS[f];const cap=$('#tutCap');cap.innerHTML=`<b>${x}</b><span>${y}</span>`;cap.classList.remove('on');void cap.offsetWidth;cap.classList.add('on');SFX.open()}
+  if(t>=tot+.3)tutIntroFim()}
+$('#tutIntroSkip').onclick=()=>{SFX.click();tutIntroFim()};
+addEventListener('keydown',e=>{if(tut.intro&&(e.key==='Escape'||e.key==='Enter'||e.key===' ')){e.preventDefault();tutIntroFim()}},true);
+
+/* ---------- Passos ---------- */
+function tutStart(fresh){tutStop();if(!W||!W.tut)return;tut.on=true;tut.step=clamp(W.tut.step|0,0,TUT_PASSOS.length-1);tut.seenCarry=false;tut.tour=0;tut.tourT=0;tut.feito=0;
+  tut.timer=setInterval(tutTick,300);
+  const loop=()=>{if(!tut.on)return;if(tut.intro)tutIntroPasso();else tutPosiciona();tut.raf=requestAnimationFrame(loop)};tut.raf=requestAnimationFrame(loop);
+  if(fresh&&tut.step===0)tutIntro();else tutMostra()}
+function tutStop(){tut.on=false;clearInterval(tut.timer);cancelAnimationFrame(tut.raf);tut.intro=null;document.body.classList.remove('tut-cine');
+  for(const q of['#tutIntro','#tutCard','#tutSpot','#tutMark'])$(q).hidden=true}
+const tutPasso=()=>TUT_PASSOS[tut.step];
+function tutMostra(){const p=tutPasso();if(!p)return;tut.feito=0;tut.sair=0;tut.alvoAnt='';tut.xAnt='';tut.lAnt='';if(p.ini)p.ini();
+  const card=$('#tutCard');card.hidden=false;card.classList.remove('feito');card.dataset.passo=p.id;
+  $('#tutNum').textContent=p.fim?'Último passo':`Passo ${tut.step+1} de ${TUT_PASSOS.length}`;
+  $('#tutBar').style.width=Math.round(tut.step/(TUT_PASSOS.length-1)*100)+'%';
+  $('#tutT').textContent=p.t;$('#tutPremio').innerHTML=icon('sparkle')+'+'+brl(p.fim?TUT_FINAL:TUT_PREMIO);
+  const info=p.info&&p.info();$('#tutNext').hidden=!info;$('#tutNext').innerHTML=p.fim?'Jogar':'Entendi'+icon('play');$('#tutPula').hidden=!!info;
+  $('#tutSair').hidden=!!p.fim;$('#tutSair').textContent='Sair do tutorial';
+  tutTexto();card.classList.remove('entra');void card.offsetWidth;card.classList.add('entra');SFX.open();
+  if(p.fim)tutFesta()}
+function tutTexto(){const p=tutPasso();if(!p)return;const x=p.x();if(tut.xAnt!==x){tut.xAnt=x;$('#tutX').innerHTML=x}
+  const l=p.lista?p.lista():[];const h=l.map(([n,ok])=>`<li class="${ok?'ok':''}">${icon(ok?'check':'play')}<span>${n}</span></li>`).join('')+(p.meta?`<li class="meta">${p.meta}</li>`:'');
+  const ul=$('#tutLista');ul.hidden=!l.length;if(tut.lAnt!==h){tut.lAnt=h;ul.innerHTML=h}}
+// confere o objetivo do passo; ao cumprir, mostra o "Feito!", paga e segue
+function tutTick(){if(!tut.on||!game.active||!W||!W.tut||tut.intro||tut.feito)return;const p=tutPasso();if(!p)return;
+  if(game.carry)tut.seenCarry=true;
+  if(p.tour){tut.tourT+=.3;if(tut.tourT>=3.4){tut.tourT=0;tut.tour++;if(TUT_TOUR[tut.tour%TUT_TOUR.length][0]==='#titleStat'&&!tutVisivel('#titleStat'))tut.tour++}}
+  tutTexto();if(!(p.info&&p.info())&&p.ok())tutConclui(true)}
+function tutConclui(paga){const p=tutPasso();if(!p||tut.feito)return;tut.feito=1;
+  if(paga){const v=p.fim?TUT_FINAL:TUT_PREMIO;W.money+=v;SFX.coin();updateHud()}
+  if(p.fim){W.tut.done=true;W.tut.step=TUT_PASSOS.length;tutStop();toast(`Tutorial concluído! A prefeitura deixou ${brl(TUT_FINAL)} no caixa.`,'ok');news('Tutorial concluído. Agora a cidade é toda sua.');saveGame(true);return}
+  const card=$('#tutCard');card.classList.add('feito');$('#tutNum').textContent=paga?'Feito! +'+brl(TUT_PREMIO):'Passo pulado';
+  setTimeout(()=>{if(!tut.on||!W||!W.tut)return;tut.step++;W.tut.step=tut.step;saveGame(true);tutMostra()},paga?1300:350)}
+$('#tutNext').onclick=()=>{SFX.click();tutConclui(true)};
+$('#tutPula').onclick=()=>{SFX.click();tutConclui(false)};
+// sair pede um segundo toque (o tutorial some e a cidade continua)
+$('#tutSair').onclick=()=>{const b=$('#tutSair');if(!tut.sair){tut.sair=1;b.textContent='Sair mesmo?';SFX.click();setTimeout(()=>{if(tut.sair){tut.sair=0;b.textContent='Sair do tutorial'}},4000);return}
+  SFX.click();if(W&&W.tut){W.tut.done=true;saveGame(true)}tutStop();toast('Tutorial encerrado. Ele pode ser repetido pelo botão Tutorial do menu.')};
+
+/* ---------- Destaque no botão e marca no mapa ---------- */
+function tutPosiciona(){const p=tutPasso(),spot=$('#tutSpot'),mark=$('#tutMark');if(!p||!game.active||$('#tutCard').hidden){spot.hidden=true;mark.hidden=true;return}
+  const q=!tut.feito&&p.alvo?p.alvo():null,el=q?$(q):null;
+  if(el&&tutVisivel(el)){if(q!==tut.alvoAnt){tut.alvoAnt=q;if(el.closest('#tabs,#items')&&el.scrollIntoView)el.scrollIntoView({block:'nearest',inline:'center'})}
+    const r=el.getBoundingClientRect();spot.hidden=false;Object.assign(spot.style,{left:r.left-6+'px',top:r.top-6+'px',width:r.width+12+'px',height:r.height+12+'px'})}
+  else spot.hidden=true;
+  const w=!tut.feito&&p.mundo?p.mundo():null;
+  if(w){_tuV.set(w[0],.2,w[1]).project(camera);const x=(_tuV.x+1)/2*innerWidth,y=(1-_tuV.y)/2*innerHeight;
+    if(_tuV.z<1&&x>0&&y>0&&x<innerWidth&&y<innerHeight){mark.hidden=false;mark.style.transform=`translate(${x}px,${y}px)`;$('#tutMarkTxt').textContent=p.marca||''}else mark.hidden=true}
+  else mark.hidden=true}
+function tutFesta(){const fx=$('#fx');if(!fx)return;const cores=['#f2b632','#4f8a45','#3f86b8','#c4513a','#fbf8ee'];
+  for(let k=0;k<60;k++){const s=document.createElement('i');s.className='tut-confete';s.style.left=Math.random()*100+'vw';s.style.background=cores[k%cores.length];
+    s.style.animationDelay=Math.random()*.6+'s';s.style.animationDuration=1.8+Math.random()*1.4+'s';s.style.setProperty('--gx',(Math.random()*2-1)*120+'px');fx.appendChild(s);setTimeout(()=>s.remove(),4000)}
+  SFX.harvest()}
+
 /* ---- js/12-principal.js ---- */
 'use strict';
 /* ================= Loop principal ================= */
@@ -5141,7 +5420,7 @@ async function boot(hotData){
   // o logo vai uma vez só no arquivo (na tela de carregar); o menu usa a mesma imagem
   $('#menuLogo').src=$('.load-logo').src;
   // mundo de fundo do menu
-  const seed=Math.floor(Math.random()*1e9);const m=genMap('lago',seed);decorateDemo(m,seed);const w=newState('lago',seed);w.T=m.T;W=w;
+  const seed=Math.floor(Math.random()*1e9);const m=genMap('lago',seed,{kit:true});decorateDemo(m,seed);const w=newState('lago',seed);w.T=m.T;W=w;
   for(const[i,id]of m.items){w.b[i]={id,v:Math.random(),rot:0,age:ITEMS[id].crop?Math.random()*ITEMS[id].crop.grow*1.1:0,occ:ITEMS[id].home||0}}
   for(const[i,id]of m.items){const d=ITEMS[id];if(!d.road&&!d.crop&&!isNatureId(id))w.b[i].rot=faceRoad(i,0)}
   buildWorld();for(let k=0;k<14;k++)spawnCar();cam.menu=true;
@@ -5149,6 +5428,8 @@ async function boot(hotData){
   cam.target.set(m.col+OFF-HALF+2,0,m.row+OFF-HALF);cam.zoom=1;
   $('#loadBar').style.width='100%';
   applyShadows();syncSoundBtn();refreshMenu();$('#menu').hidden=false;
+  // DEC-029: primeira visita recebe o Bem-vindo com o convite para o tutorial
+  tutBemVindo();
   setTimeout(()=>{$('#loading').style.opacity='0';setTimeout(()=>$('#loading').remove(),500)},250);
   requestAnimationFrame(frame);
   RV.booted=true;
@@ -5159,13 +5440,16 @@ addEventListener('pagehide',()=>saveGame(true));
 try{window.claude?.hot?.snapshot?.(()=>({save:game.active&&W?serialize():null}))}catch(e){}
 // Gancho de testes: só existe quando o navegador é controlado por automação (Playwright) ou com ?teste na URL
 if(navigator.webdriver||/[?&]teste\b/.test(location.search)){
-  window.__RV={get W(){return W},game,cam,keys,AU,ITEMS,N,idx,stats:computeStats,hourTick,newGame,serialize,deserialize,validSave,saveGame,toMenu,startGame,
+  window.__RV={get W(){return W},game,cam,keys,AU,ITEMS,N,idx,stats:computeStats,hourTick,
+    // DEC-029: os testes antigos contam com o kit inicial; o jogo de verdade começa vazio (o T132 confere)
+    newGame:(t,s,m,o)=>newGame(t,s,m,Object.assign({kit:true},o)),newGameReal:newGame,serialize,deserialize,validSave,saveGame,toMenu,startGame,
     placeAt,removeAt,cloudMat,updateHud,toast,SUN,SEASON,weatherNow,realSunEl,sunPos,brasilia,flushPaint,flushTerra,modelCache,objs,cars,boats,animals,orbitBy,tileSd,terrainHeightAt,
     camera,pickUp,dropAt,cancelCarry,rotateTool,previewAt,setTool,ghostRoot,arrow,toolV,keyFor,variantOf,canMoveTo,get reach(){return reach},
     renderer,tufts,PREV_MAX,TUFT_MAX,modelKey,SEASONS,seasonOf,brasiliaAt,clockText,dateText,isNight,genAt,prefs,updateLighting,resetNorth,EL_DEF,
     setClock(ms){clockOverride=ms;_bCache=null;_rsT=-1e12;refreshSeason();checkSeasonVisuals();updateLighting(.016,0)},setWeather(k){weatherForce=k},popMoney,audioInit,THUMBS,ORDER,canPlace,planFor,applyBuild,hasRoadAccess,pops,prevMesh,musicTick,scheduleStep,buildMusicChain,news,cityIssues,checkIssues,doIssueAction,setTrayMin,get issuesNow(){return issuesNow},setIssueToasts(v){issueToastsOn=v},richToast,wpos,sun,machines,ducks,capys,butterflies,planes,harvestMachine,spawnDucks,spawnCapys,spawnButterflies,computeCropBonus,cropGrow,cropVal,industryRate,cityBoost,spinnersY,beams,CATS,computeStats,near,anchorOf,fpTiles,fitAt,isMulti,sizeOf,fixFootprints,buildLot,QROT,trains,barriers,closedX,airPlanes,ships,isRail,railInfo,railMask,railLink,stationTrack,lotTile,stationLinked,stationOnLoop,railFlowReverse,pathPoint,updateTransporte,manageTransport,forceAirplane,forceShip,portDock,cityIssues,fpSide,CATS,updateCars,cityBoost,trainReverse,placeTrain,peds,personModel,ROLES,waterTopMat,spawnCar,spawnParked,newTrip,lotSlots,lotTargets,carRoute,slotCar,lotBusy,frontRoad,carModel,updateAnimals,spawnPed,pedSpawnSpots,managePeds,updatePeds,updatePessoas,updateSignals,carLight,walkOk,isJunction,isSignal,signalLamps,pedCrossing,pedRoute,get sigT(){return sigT},sigSet,redLeft,onWalk,checkIssues,tryVisit,lotSeats,seatsTaken,bridgeProfile,bridgeRuns,bridgeH,bridgePart,deckLift,lowBridge,shipPath,shipChannel,shipLine,waterShore,wxSlot,WX_SLOT,spawnMudanca,cityEntrance,arrivalInfo,upgradeOf,doUpgrade,UPGRADE,nearPop,fpCenter,brazukaLogoMat,metroNear,arrivalsPerCycle,openObra,spawnEsp,manageEmergencia,animalGap,ANIMAL_SHAPE,sitPose,bench,mulberry,tube,addGente,chicken,personModel,cow,horse,sheep,ZOO_MAKE,roadModel,planeModel,shipModel,winMat,lampMat,tailMat,ESP,hasSlots,upgradeGain,brl,genAt,face,set sigT(v){sigT=v},refreshObj,forcePlane,updateVidaNova,cityList,saveCitySlot,deleteCity,loadCity,migrateCities,cityKey,newWorld,genWorld,WORLDS,WORLD_ORDER,weatherSeen,get booted(){return RV.booted},get fatal(){return RV.fatal},
     ECON,MODES,TITLES,GOALS,TIER,unlocked,tierOf,titleForPop,titleNeed,progressTick,priceOf,modeOf,lockText,
     groundAt,get landSel(){return landSel},closePanel,OFF,START,BLK,NBK,I0,LAND,owned,blockOf,startOwn,buyLand,landPrice,landState,landInfo,landRing,refreshLand,openLand,landSigns,landVeil,ownedBounds,genOuter,
+    tut,TUT_PASSOS,tutStart,tutStop,tutTick,tutConclui,tutNovaCidade,genMap,panelKind:()=>panelKind,openPanel,
     tick(h){for(let k=0;k<h;k++){W.hours+=1;lastHour=Math.floor(W.hours);hourTick()}}};
 }
 const hot=window.claude&&window.claude.hot;
