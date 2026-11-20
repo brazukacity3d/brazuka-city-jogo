@@ -1,5 +1,5 @@
-// Brazuka City 0.19.1: gerado por tools/site.mjs
-const CACHE='brazuka-0.19.1';
+// Brazuka City 0.20.0: gerado por tools/site.mjs
+const CACHE='brazuka-0.20.0';
 const ARQUIVOS=['./','index.html','three.min.js','manifest.webmanifest','icone-180.png','icone-192.png','icone-512.png','icone-maskable-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ARQUIVOS)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});

@@ -616,6 +616,17 @@ body.tut-cine #hud,body.tut-cine #tray,body.tut-cine #cam,body.tut-cine #hint,bo
 @media (pointer:coarse) and (max-height:520px),(max-width:640px){.tut-acts{margin-inline:-12px;padding-inline:8px}}
 /* v0.19.1: aviso na escolha de mapa quando o jogador pediu o tutorial pelo menu */
 .maps-tut{margin-top:6px!important;display:inline-flex;font-weight:700;font-size:13px;color:#6b4c0a;background:rgba(242,182,50,.28);border-radius:10px;padding:5px 10px}
+/* DEC-030: escolha do estilo das moradias na tela do mapa */
+.pick-tit{margin:0 0 8px;font-family:var(--display);font-weight:800;font-size:16px;color:var(--pine)}
+.estilo-pick{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 18px}
+.estilo-opt{background:var(--panel-solid);border-radius:16px;padding:8px 12px 8px 8px;text-align:left;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;border:2px solid transparent}
+.estilo-opt img{width:58px;height:58px;flex:none;border-radius:12px;background:#e9f0e0}
+.estilo-opt span{display:flex;flex-direction:column;gap:3px}
+.estilo-opt b{font-family:var(--display);font-weight:800;font-size:17px;color:var(--pine)}
+.estilo-opt small{color:var(--muted);font-weight:600;font-size:12.5px;line-height:1.3}
+.estilo-opt.on{border-color:var(--leaf);background:#eef5e6}
+@media (max-width:640px){.estilo-pick{grid-template-columns:1fr;gap:6px}.estilo-opt img{width:44px;height:44px}.estilo-opt small{font-size:12px}}
+@media (pointer:coarse) and (max-height:520px){.estilo-opt img{width:40px;height:40px}.estilo-opt{padding:5px 8px 5px 5px}.pick-tit{font-size:14px;margin-bottom:5px}}
 </style>
 <canvas id="gl" aria-label="Vale em 3D"></canvas>
 <div id="fx"></div>
@@ -745,6 +756,8 @@ body.tut-cine #hud,body.tut-cine #tray,body.tut-cine #cam,body.tut-cine #hint,bo
       <div><h2>Escolha sua terra</h2><p>Cada mapa nasce na hora. Embaralhe até encontrar o seu lugar.</p><p class="maps-tut" id="mapsTut" hidden>Tutorial: escolha o mapa e o modo. Ele começa assim que a cidade abrir.</p></div>
     </div>
     <div class="mode-pick" id="modePick" role="radiogroup" aria-label="Modo de jogo"></div>
+    <h3 class="pick-tit">Estilo das moradias</h3>
+    <div class="estilo-pick" id="estiloPick" role="radiogroup" aria-label="Estilo das moradias"></div>
     <div class="map-grid" id="mapGrid"></div>
   </div>
 </section>
@@ -817,7 +830,7 @@ const savePrefs=()=>store.set('rv:prefs',prefs);
 const fmt=n=>Math.round(n).toLocaleString('pt-BR');
 // v0.17 (DEC-021): a moeda do jogo é o real
 const brl=n=>(n<0?'−':'')+'R$ '+fmt(Math.abs(n));
-const SAVE_KEY='rv:save', SAVE_VERSION=8, CITIES_KEY='rv:cidades', CITIES_MAX=12;
+const SAVE_KEY='rv:save', SAVE_VERSION=9, CITIES_KEY='rv:cidades', CITIES_MAX=12;
 // BUG-011: todo texto que vem do jogador ou do save passa por esc() antes de ir para innerHTML
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // BUG-009: se algo quebra antes do menu aparecer (sem WebGL, three.js não carregou), mostra uma mensagem em vez de travar no carregamento
@@ -1219,7 +1232,8 @@ const ITEMS={};const ORDER=[];
 function def(id,o){o.id=id;o.mode=o.mode||'single';ITEMS[id]=o;ORDER.push(id);return o}
 const isNatureId=id=>id&&ITEMS[id]&&ITEMS[id].cat==='natureza';
 // Contexto sazonal lido pelos modelos que mudam com a estação (ipê florido)
-const MCTX={ipe:0};
+// estilo: o da cidade aberta (DEC-030), lido pelas moradias
+const MCTX={ipe:0,estilo:'classico'};
 
 /* ---------- Pequenos conjuntos reutilizados ---------- */
 function bush(g,r,x,z,s=1,flowers=0){const c=pick(r,PAL.leaf);L(g,.17*s,c,x,0,z,.8);L(g,.12*s,shade(c,.05),x+.06*s,.04*s,z+.04*s,.9);L(g,.11*s,shade(c,-.04),x-.06*s,.02*s,z-.03*s,.9);
@@ -1902,6 +1916,8 @@ function topoPredio(g,y,c,x=-.12,z=-.12){RB(g,.26,.14,.22,c,x,y,z,.01);RB(g,.28,
   C(g,.008,.26,.008,'#777',x-.06,y+.15,z-.05);for(let k=0;k<3;k++)B(g,.07-k*.015,.004,.004,'#777',x-.06,y+.3+k*.035,z-.05);C(g,.006,.16,.006,'#9a9a96',x+.08,y+.15,z+.06)}
 def('torre',{cat:'moradias',name:'Torre residencial',cost:4200,home:90,energy:30,needsRoad:true,desc:'Torre de apartamentos com varandas para até 90 moradores. Um prédio pode virar torre com o botão Melhorar.',
   make(r){const g=new THREE.Group();const w=pick(r,['#efe7da','#e6ecef','#f1e6da','#e9e5ee','#f3ecd2']),tr=shade(w,-.1),ac=pick(r,['#b5674b','#4f7f9c','#5f8f6a','#c9a13a','#8a5a7a','#3f6f8a']);RB(g,.84,.04,.84,'#cfc6b4',0,0,0,.012);
+    // DEC-030: a faixa colorida é o acento que a pintura de estilo troca
+    g.userData.alta=[ac];
     // térreo com pilotis, portaria no meio, portão de garagem e janela da guarita
     RB(g,.72,.2,.72,'#8d969c',0,.04,0,.02);{const f=face(g,0,.72,.72);portaria(f,0,.04,.16,.13,ac);portao(f,.24,.04);wn(f,.12,.07,-.24,.09);for(const k of[1,3]){const s=face(g,k,.72,.72);for(const x of[-.2,.2])wn(s,.14,.06,x,.11,r()<.5)}}
     RB(g,.66,1.92,.66,w,0,.24,0,.02);
@@ -1914,6 +1930,8 @@ def('torre',{cat:'moradias',name:'Torre residencial',cost:4200,home:90,energy:30
     RB(g,.7,.05,.7,tr,0,2.16,0,.01);topoPredio(g,2.21,w);const lz=S(g,.02,'#ff3b30',-.18,2.63,-.17);lz.material=new THREE.MeshBasicMaterial({color:'#ff3b30'});return g}});
 def('arranhaceu',{cat:'moradias',name:'Arranha-céu',cost:13000,home:240,energy:72,needsRoad:true,desc:'O topo da evolução: fachada de vidro, varandas, cobertura com mirante e antena. Até 240 moradores. Uma torre pode virar arranha-céu com o botão Melhorar.',
   make(r){const g=new THREE.Group();const gl=pick(r,['#4f7f9c','#4a6f8a','#5b8a8f','#5a6f94']),fr='#e3e9ec';RB(g,.86,.04,.86,'#cfc6b4',0,0,0,.012);
+    // DEC-030: os caixilhos claros são o acento que a pintura de estilo troca
+    g.userData.alta=[fr];
     // embasamento com o saguão de pé-direito duplo: portaria de vidro, colunas e portão de garagem
     RB(g,.8,.26,.8,'#6f7a80',0,.04,0,.02);RB(g,.82,.02,.82,'#e3e9ec',0,.3,0,.006);{const f=face(g,0,.8,.8);B(f,.3,.2,.01,winMat,-.2,.05,.001);portaria(f,.04,.04,.2,.17,'#1f3b4f');portao(f,.29,.04,.15,.12);for(const x of[-.37,-.07,.16])B(f,.022,.24,.022,fr,x,.04,.011);
       for(const k of[1,3]){const s=face(g,k,.8,.8);B(s,.6,.12,.01,winMat,0,.1,.001);for(const x of[-.2,0,.2])B(s,.012,.12,.014,'#3a4448',x,.1,.002)}}
@@ -1962,6 +1980,144 @@ def('torre_brazuka',{cat:'monumentos',name:'Torre Brazuka',cost:60000,unique:tru
     RB(g,.4,.03,.4,'#f2c230',0,1.96,0,.01);S(g,.16,'#2f5fbf',0,2.16,0);ring(g,.16,.012,'#f4f4f0',0,2.16,0);C(g,.015,.4,.015,'#dcdcdc',0,2.3,0);
     const lz=S(g,.025,'#ff3b30',0,2.72,0);lz.material=new THREE.MeshBasicMaterial({color:'#ff3b30'});
     const beam=new THREE.Group();beam.position.set(0,2.0,0);beam.userData.beam=1;beam.userData.dyn=1;g.add(beam);return g}});
+
+/* ---- js/03e-estilos.js ---- */
+'use strict';
+/* ================= Estilos de cidade (DEC-030) =================
+   Cada cidade nova escolhe um estilo, e as moradias (chalé, casa, sobrado e prédio) seguem esse estilo.
+   Os 3 primeiros são grátis; os estilos regionais seguintes ficam para o passe.
+   - classico: o visual de sempre (o make() de cada item, em 03-catalogo.js).
+   - nordeste: casario colorido (Pelourinho, Olinda, São Luís): fachada de cor viva, platibanda escondendo o telhado,
+     cunhais e cimalha brancos, portas e janelas altas com verga em arco e folhas de madeira pintadas, sacada de ferro no sobrado.
+   - mineiro: colonial mineiro (Ouro Preto, Tiradentes): parede caiada de branco, cunhais e molduras pintados, telhado colonial
+     de quatro águas com beiral largo e cachorros de madeira, embasamento de pedra, sacada de madeira no sobrado.
+   As medidas de fora (pegada no lote e frente para +z) são as mesmas do clássico, para vagas, gente e sombras não mudarem. */
+const ESTILOS=[
+  {id:'classico',nome:'Clássico',desc:'Casas de telhado aparente e cores suaves, como sempre.',gratis:true},
+  {id:'nordeste',nome:'Nordeste',desc:'Casario colorido com platibanda, como no Pelourinho e em Olinda.',gratis:true},
+  {id:'mineiro',nome:'Mineiro',desc:'Colonial de parede branca e telhado de quatro águas, como em Ouro Preto.',gratis:true}];
+const ESTILO_ITENS=new Set(['chale','casa','sobrado','predio']);
+const estiloOk=id=>ESTILOS.some(e=>e.id===id)?id:'classico';
+const PAL_NE={wall:['#f2c94c','#5fa8d3','#e57f9b','#7cc7b0','#f08a4b','#b58ad6','#e9e05a','#ef6f5e'],folha:['#2f7d5a','#2f5d8a','#8a3f3f','#f7f3ea','#3f8a8a'],trim:'#f8f4ea',roof:'#b8613f'};
+const PAL_MG={wall:['#f6f3ec','#f6f3ec','#f4efe3','#f3ead2'],cor:['#2f5f8f','#c39a3e','#3f6f45','#8f3326','#5a6e8a'],roof:['#8a4a32','#96543a','#7d4430'],pedra:'#a7a196',madeira:'#5c3d29'};
+
+/* ---------- peças em comum ---------- */
+// janela alta com folhas de madeira abertas para os lados; o vidro acende à noite (winMat)
+function janelaFolhas(g,x,y,z,w,h,moldura,folha,arco){B(g,w+.03,h+.03,.012,moldura,x,y-.015,z);B(g,w,h,.02,winMat,x,y,z+.004);
+  for(const s of[-1,1]){const f=B(g,w*.5,h,.01,folha,x+s*(w*.75+.012),y,z+.012);f.rotation.y=s*.5}
+  B(g,w+.05,.016,.034,moldura,x,y-.03,z+.012);if(arco)CX(g,.014,w/2+.016,moldura,x,y+h,z-.002,'z');else B(g,w+.05,.02,.02,moldura,x,y+h+.005,z+.004)}
+// janela colonial mineira: moldura larga pintada, vidraça de guilhotina com caixilho branco e peitoril de pedra
+function janelaMG(g,x,y,z,w,h,c){B(g,w+.036,h+.036,.012,c,x,y-.018,z);B(g,w,h,.02,winMat,x,y,z+.004);B(g,w,.008,.026,'#f6f3ec',x,y+h*.5,z+.006);B(g,.006,h,.026,'#f6f3ec',x,y,z+.006);B(g,w+.05,.016,.034,PAL_MG.pedra,x,y-.034,z+.012)}
+// porta de madeira com moldura; arco = bandeira em meia-lua por cima
+function portaMold(g,x,z,cor,moldura,w=.1,h=.2,arco=false){B(g,w+.035,h+.02,.012,moldura,x,0,z);RB(g,w,h,.02,cor,x,0,z+.006,.006);B(g,.004,h*.9,.024,shade(cor,-.12),x,0,z+.008);
+  S(g,.012,'#d9b45a',x+w*.3,h*.48,z+.02);if(arco){CX(g,.014,w/2+.018,moldura,x,h,z-.002,'z');CX(g,.016,w/2-.006,winMat,x,h+.004,z+.002,'z')}B(g,w+.07,.02,.05,'#bdb3a2',x,0,z+.03)}
+// cunhais: pilastras nos cantos da fachada
+function cunhais(g,w,d,h,x,z,c,y0=0){for(const sx of[-1,1])for(const sz of[-1,1])B(g,.032,h,.032,c,x+sx*(w/2-.008),y0,z+sz*(d/2-.008))}
+// platibanda da frente (e um pouco dos lados), com cimalha embaixo e coroamento em cima
+function platibanda(g,w,d,x,y,z,parede,trim,frontao){B(g,w+.03,.022,.05,trim,x,y,z+d/2);B(g,w,.09,.03,parede,x,y+.022,z+d/2-.005);B(g,w+.03,.016,.045,trim,x,y+.11,z+d/2-.005);
+  for(const s of[-1,1])B(g,.03,.09,d*.35,parede,x+s*(w/2-.015),y+.022,z+d/2-d*.175);
+  if(frontao){B(g,w*.34,.05,.03,parede,x,y+.126,z+d/2-.005);B(g,w*.38,.014,.04,trim,x,y+.176,z+d/2-.005)}}
+// telhado colonial: quatro águas, beiral largo com forro de madeira e cachorros na frente
+function telhadoColonial(g,w,d,h,c,x,y,z,mad){hip(g,w+.14,d+.14,h,c,x,y+h/2,z);B(g,w+.1,.014,d+.1,mad,x,y-.004,z);
+  for(let k=0;k<Math.max(3,Math.round(w/.07));k++){const n=Math.max(3,Math.round(w/.07));B(g,.012,.014,.05,mad,x-w/2+.02+k*(w-.04)/(n-1),y-.018,z+d/2+.02)}
+  CX(g,w*.08+.02,.016,shade(c,-.15),x,y+h,z,'x')}
+
+/* ---------- Nordeste ---------- */
+const NE={
+  chale(r){const g=new THREE.Group();const p=pick(r,PAL_NE.wall),t=PAL_NE.trim,f=pick(r,PAL_NE.folha);RB(g,.5,.05,.42,'#cfc6b4',0,0,-.06,.012);
+    B(g,.44,.34,.38,p,0,.05,-.06);B(g,.45,.06,.39,shade(p,-.12),0,.05,-.06);cunhais(g,.44,.38,.34,0,-.06,t,.05);
+    gable(g,.36,.42,.12,PAL_NE.roof,0,.39,-.08,Math.PI/2,p,.03);platibanda(g,.44,.38,0,.39,-.06,p,t,r()<.5);
+    portaMold(g,.09,.13,f,t,.09,.22,true);janelaFolhas(g,-.1,.2,.13,.09,.13,t,f,true);win(g,.08,.1,.225,.2,-.06,'x',t);
+    bush(g,r,-.3,.32,.6,2);RB(g,.08,.012,.16,'#d8cfbd',.09,0,.28,.004);return g},
+  casa(r){const g=new THREE.Group();const p=pick(r,PAL_NE.wall),t=PAL_NE.trim,f=pick(r,PAL_NE.folha);RB(g,.86,.04,.7,'#cfc6b4',0,0,-.04,.012);
+    B(g,.74,.36,.44,p,0,.04,-.1);B(g,.75,.06,.45,shade(p,-.12),0,.04,-.1);cunhais(g,.74,.44,.36,0,-.1,t,.04);B(g,.016,.36,.012,t,-.12,.04,.125);
+    gable(g,.42,.7,.13,PAL_NE.roof,0,.4,-.12,Math.PI/2,p,.03);platibanda(g,.74,.44,0,.4,-.1,p,t,true);
+    portaMold(g,-.04,.12,f,t,.1,.23,true);for(const x of[-.26,.12,.27])janelaFolhas(g,x,.19,.12,.085,.14,t,f,true);
+    // muro baixo do quintal ao lado, na mesma cor
+    B(g,.04,.1,.3,p,.4,0,.18);B(g,.05,.012,.31,t,.4,.1,.18);bush(g,r,.3,.3,.6,3);C(g,.012,.09,.012,'#555',-.38,0,.34);RB(g,.04,.035,.05,'#c4513a',-.38,.09,.34,.008);return g},
+  sobrado(r){const g=new THREE.Group();const p=pick(r,PAL_NE.wall),t=PAL_NE.trim,f=pick(r,PAL_NE.folha),ferro='#2d3134';RB(g,.66,.04,.6,'#cfc6b4',0,0,-.04,.012);
+    B(g,.58,.66,.46,p,0,.04,-.08);B(g,.59,.07,.47,shade(p,-.12),0,.04,-.08);cunhais(g,.58,.46,.66,0,-.08,t,.04);B(g,.6,.02,.48,t,0,.36,-.08);
+    gable(g,.44,.56,.13,PAL_NE.roof,0,.7,-.1,Math.PI/2,p,.03);platibanda(g,.58,.46,0,.7,-.08,p,t,true);
+    portaMold(g,0,.15,f,t,.1,.22,true);for(const x of[-.18,.18])janelaFolhas(g,x,.12,.15,.085,.15,t,f,true);
+    // andar de cima: três portas-janela com sacada de ferro (balcão de pedra e grade)
+    for(const x of[-.18,0,.18]){janelaFolhas(g,x,.4,.15,.08,.2,t,f,true);B(g,.13,.016,.07,'#e4ddd0',x,.39,.19);for(let k=0;k<5;k++)C(g,.006,.07,.006,ferro,x-.05+k*.025,.405,.222);CX(g,.13,.005,ferro,x,.475,.222,'x')}
+    for(const z of[-.2,.04]){win(g,.09,.11,.29,.14,z,'x',t);win(g,.09,.13,.29,.42,z,'x',t)}
+    bush(g,r,-.3,.32,.6,3);return g},
+  predio(r){const g=new THREE.Group();const p=pick(r,PAL_NE.wall),t=PAL_NE.trim,ferro='#2d3134';RB(g,.84,.04,.84,'#cfc6b4',0,0,0,.012);
+    RB(g,.72,.2,.72,shade(p,-.25),0,.04,0,.02);B(g,.7,1.18,.7,p,0,.24,0);cunhais(g,.7,.7,1.18,0,0,t,.24);
+    for(let fl=0;fl<4;fl++){const y=.3+fl*.27;B(g,.72,.018,.72,t,0,y+.225,0);
+      for(const x of[-.2,.2]){win(g,.14,.13,x,y+.04,.354,'z',t);B(g,.22,.016,.1,'#e8e1d4',x,y,.395);for(let k=0;k<7;k++)C(g,.006,.07,.006,ferro,x-.1+k*.033,y+.016,.44);CX(g,.21,.005,ferro,x,y+.09,.44,'x')}
+      win(g,.07,.13,0,y+.04,.354,'z',t)}
+    {const fc=face(g,0,.72,.72);portaria(fc,0,.04,.16,.14,'#2f7d5a');portao(fc,.25,.04,.15,.11);wn(fc,.13,.08,-.25,.08)}
+    for(const k of[1,3]){const fc=face(g,k,.7,.7);for(let fl=0;fl<4;fl++){for(const x of[-.2,.2])wn(fc,.1,.13,x,.34+fl*.27,r()<.55,t);if(k===1&&r()<.5)arCond(fc,.06,.41+fl*.27)}}
+    {const fc=face(g,2,.7,.7);for(let fl=0;fl<4;fl++)for(const x of[-.2,0,.2])wn(fc,x?.12:.07,x?.12:.07,x,.34+fl*.27+(x?0:.04),r()<.5,t)}
+    // platibanda no alto com o coroamento branco e a caixa d'água atrás
+    B(g,.72,.1,.72,p,0,1.42,0);B(g,.74,.02,.74,t,0,1.52,0);B(g,.24,.06,.032,p,0,1.54,.344);B(g,.27,.014,.04,t,0,1.6,.344);RB(g,.16,.12,.14,'#d8d6d0',-.15,1.44,-.15,.01);C(g,.14,.1,.14,'#5d8fb3',.17,1.44,-.17);return g}};
+
+/* ---------- Mineiro ---------- */
+const MG={
+  chale(r){const g=new THREE.Group();const p=pick(r,PAL_MG.wall),c=pick(r,PAL_MG.cor),rf=pick(r,PAL_MG.roof);RB(g,.5,.05,.42,'#cfc6b4',0,0,-.06,.012);
+    B(g,.46,.06,.4,PAL_MG.pedra,0,.05,-.06);B(g,.44,.26,.38,p,0,.11,-.06);cunhais(g,.44,.38,.26,0,-.06,c,.11);
+    telhadoColonial(g,.44,.38,.17,rf,0,.37,-.06,PAL_MG.madeira);portaMold(g,.09,.13,c,c,.09,.2);B(g,.13,.03,.05,PAL_MG.pedra,.09,.0,.16);
+    janelaMG(g,-.1,.19,.13,.08,.11,c);win(g,.08,.09,.225,.19,-.06,'x',c);bush(g,r,-.31,.31,.6,2);RB(g,.08,.012,.16,'#d8cfbd',.09,0,.28,.004);return g},
+  casa(r){const g=new THREE.Group();const p=pick(r,PAL_MG.wall),c=pick(r,PAL_MG.cor),rf=pick(r,PAL_MG.roof);RB(g,.86,.04,.7,'#cfc6b4',0,0,-.04,.012);
+    B(g,.78,.07,.46,PAL_MG.pedra,0,.04,-.1);B(g,.76,.26,.44,p,0,.11,-.1);cunhais(g,.76,.44,.26,0,-.1,c,.11);B(g,.78,.02,.46,c,0,.37,-.1);
+    telhadoColonial(g,.76,.44,.19,rf,0,.39,-.1,PAL_MG.madeira);portaMold(g,-.12,.12,c,c,.1,.22);B(g,.14,.035,.05,PAL_MG.pedra,-.12,0,.15);
+    for(const x of[-.3,.06,.24])janelaMG(g,x,.19,.12,.08,.12,c);
+    // muro de pedra e bica no quintal, como nas casas das ladeiras
+    B(g,.05,.1,.3,PAL_MG.pedra,.4,0,.18);bush(g,r,.3,.3,.6,3);C(g,.012,.09,.012,'#555',.36,0,.36);RB(g,.04,.035,.05,'#c4513a',.36,.09,.36,.008);return g},
+  sobrado(r){const g=new THREE.Group();const p=pick(r,PAL_MG.wall),c=pick(r,PAL_MG.cor),rf=pick(r,PAL_MG.roof),mad=PAL_MG.madeira;RB(g,.66,.04,.6,'#cfc6b4',0,0,-.04,.012);
+    B(g,.6,.07,.48,PAL_MG.pedra,0,.04,-.08);B(g,.58,.56,.46,p,0,.11,-.08);cunhais(g,.58,.46,.56,0,-.08,c,.11);B(g,.6,.02,.48,c,0,.38,-.08);B(g,.6,.02,.48,c,0,.66,-.08);
+    telhadoColonial(g,.58,.46,.2,rf,0,.68,-.08,mad);portaMold(g,0,.15,c,c,.1,.22);for(const x of[-.18,.18])janelaMG(g,x,.15,.15,.08,.13,c);
+    // andar de cima: sacada corrida de madeira com balaústres, apoiada em mãos-francesas
+    for(const x of[-.18,0,.18])janelaMG(g,x,.42,.15,.075,.17,c);B(g,.52,.018,.08,mad,0,.4,.2);
+    for(let k=0;k<15;k++)B(g,.008,.07,.008,mad,-.25+k*.036,.418,.232);B(g,.52,.012,.014,mad,0,.488,.232);for(const x of[-.22,.22]){const m=B(g,.012,.07,.012,mad,x,.34,.18);m.rotation.x=-.6}
+    for(const z of[-.2,.04]){win(g,.09,.11,.29,.16,z,'x',c);win(g,.09,.12,.29,.44,z,'x',c)}bush(g,r,-.3,.32,.6,3);return g},
+  predio(r){const g=new THREE.Group();const p=pick(r,PAL_MG.wall),c=pick(r,PAL_MG.cor),rf=pick(r,PAL_MG.roof);RB(g,.84,.04,.84,'#cfc6b4',0,0,0,.012);
+    B(g,.74,.24,.74,PAL_MG.pedra,0,.04,0);B(g,.7,1.08,.7,p,0,.28,0);cunhais(g,.7,.7,1.08,0,0,c,.28);
+    for(let fl=0;fl<4;fl++){const y=.32+fl*.25;B(g,.72,.016,.72,c,0,y+.215,0);
+      for(const x of[-.22,0,.22])janelaMG(g,x,y+.04,.354,.075,.13,c)}
+    {const fc=face(g,0,.74,.74);portaria(fc,0,.04,.16,.15,c);portao(fc,.26,.04,.15,.12);wn(fc,.12,.08,-.26,.08)}
+    for(const k of[1,2,3]){const fc=face(g,k,.7,.7);for(let fl=0;fl<4;fl++)for(const x of[-.2,.2])wn(fc,.075,.12,x,.36+fl*.25,r()<.55,c)}
+    telhadoColonial(g,.7,.7,.3,rf,0,1.36,0,PAL_MG.madeira);return g}};
+
+const MOD_ESTILO={nordeste:NE,mineiro:MG};
+/* As outras construções (comércio, serviços, indústria, torre, arranha-céu...) não são refeitas peça a peça: ganham a pintura do estilo.
+   A cor clara que cobre mais área no modelo é a parede: no Nordeste vira uma cor viva do casario, no Mineiro vira a cal branca.
+   As cores de telha (barro avermelhado e as telhas do clássico) viram a telha do estilo. Molduras brancas, vidro, letreiros,
+   gente, bichos e plantas ficam como estão. */
+const _tiC=new THREE.Color(),_tiH={h:0,s:0,l:0},_tiBox=new THREE.Box3(),_tiV=new THREE.Vector3();
+const TELHAS=new Set(PAL.roof);
+// quem recebe a pintura: prédios onde se mora, compra, estuda ou se atende o público. Fábricas, usinas, energia,
+// fazendas, praças e monumentos de pedra ficam como são (moinho lilás ou turbina colorida não existem de verdade)
+const PINTA_CATS=new Set(['moradias','comercio','educacao']),PINTA_IDS=new Set(['bombeiros','policia','hospital','correios','prefeitura','igreja']);
+const pintaItem=d=>PINTA_CATS.has(d.cat)||PINTA_IDS.has(d.id);
+function ehTelha(hex){if(TELHAS.has(hex))return true;_tiC.set(hex).getHSL(_tiH);return(_tiH.h<.07||_tiH.h>.96)&&_tiH.s>.3&&_tiH.s<.8&&_tiH.l>.27&&_tiH.l<.58}
+function pinturaEstilo(g,est,r){const area=new Map(),malhas=[];
+  const anda=(o)=>{const u=o.userData;if(u.pessoa||u.anim||u.sway||u.leg)return;if(o.isMesh&&o.material&&o.material.color&&o.material!==winMat&&!o.material.emissiveMap){malhas.push(o);
+      if(!o.geometry.boundingBox)o.geometry.computeBoundingBox();_tiBox.copy(o.geometry.boundingBox).getSize(_tiV);_tiV.multiply(o.scale);
+      // piso, calçada e pátio (peças baixas) não são parede: não contam nem mudam de cor
+      if(_tiV.y<.05){o.userData._piso=1}else{const hex='#'+o.material.color.getHexString();area.set(hex,(area.get(hex)||0)+_tiV.x*_tiV.y+_tiV.y*_tiV.z+_tiV.x*_tiV.z)}}
+    for(const c of o.children)anda(c)};anda(g);
+  let parede=null,maior=0;for(const[hex,a]of area){_tiC.set(hex).getHSL(_tiH);if(_tiH.l>.7&&_tiH.l<.97&&_tiH.s<.6&&a>maior){maior=a;parede=hex}}
+  const nova=est==='nordeste'?pick(r,PAL_NE.wall):pick(r,PAL_MG.wall),telha=est==='nordeste'?PAL_NE.roof:pick(r,PAL_MG.roof);
+  // torre e arranha-céu (pedido do jogador): a faixa de pastilha e os caixilhos também entram no esquema de cores.
+  // Nordeste: parede de cor viva e faixa branca; Mineiro: parede branca, caixilhos e faixa na cor das molduras coloniais
+  const alta=g.userData.alta,cor=est==='mineiro'?pick(r,PAL_MG.cor):PAL_NE.trim,acentos=alta?new Set(alta):null;
+  for(const m of malhas){if(m.userData._piso){delete m.userData._piso;continue}const hex='#'+m.material.color.getHexString();
+    // acento claro (caixilho do arranha-céu) vira a cor viva no Nordeste; acento colorido (faixa da torre) vira o branco das molduras
+    if(acentos&&acentos.has(hex)){_tiC.set(hex).getHSL(_tiH);m.material=M(est==='nordeste'&&_tiH.l>.7?nova:cor)}
+    else if(hex===parede)m.material=M(nova);
+    else if(ehTelha(hex)){_tiC.set(hex).getHSL(_tiH);m.material=M(shade(telha,(_tiH.l-.45)*.5))}}
+  return g}
+// o modelo de um item no estilo da cidade aberta (MCTX.estilo): moradia tem modelo próprio; o resto recebe a pintura do estilo
+function modeloDe(d,r,est){const s=est||MCTX.estilo,m=MOD_ESTILO[s]&&MOD_ESTILO[s][d.id];if(m)return m(r);const g=d.make(r);
+  if(s!=='classico'&&MOD_ESTILO[s]&&pintaItem(d))pinturaEstilo(g,s,mulberry(Math.floor(r()*1e6)+7));return g}
+// roupa dos moradores no jeito da região (lida por personModel)
+const ROUPA_ESTILO={nordeste:{camisa:['#f2c230','#f28a3a','#3fb0c9','#e0607e','#f4f1ea','#7cc7b0','#d9493f'],calca:['#2f4a73','#c9b58a','#f4f1ea','#3b3f43'],chapeu:[['couro',.12],['palha',.12]],bermuda:.45},
+  mineiro:{camisa:['#8f3326','#5a6e8a','#6b7a4a','#9a7b5a','#f4f1ea','#3f6f45','#c39a3e'],calca:['#2f4a73','#3b3f43','#5a4a3a','#1f2a33'],chapeu:[['feltro',.12]],xadrez:.3,bermuda:.1}};
+// miniatura da bandeja no estilo da cidade aberta (a miniatura do estilo é feita junto com as outras, na abertura do jogo)
+const thumbKey=id=>ESTILO_ITENS.has(id)&&MCTX.estilo!=='classico'&&THUMBS[id+'@'+MCTX.estilo]?id+'@'+MCTX.estilo:id;
 
 /* ---- js/03c-lotes.js ---- */
 'use strict';
@@ -2059,8 +2215,8 @@ function buildLot0(id,r,w,d){const it=ITEMS[id],L=it.lot||{};
   const placeModel=(m,q,o={})=>{const b=R(q),mw=b.x1-b.x0,md=b.z1-b.z0;const s=Math.min(mw,md)*.97,cap=o.max||L.max||2.4;
     if(o.stretch)m.scale.set(mw*.97,Math.min(mw,md,1.4)*.97,md*.97);else m.scale.setScalar(Math.min(s,cap));
     m.position.set((b.x0+b.x1)/2,.02,(b.z0+b.z1)/2);g.add(m);used.push(b)};
-  placeModel(it.make(r),L.main||[0,0,w,d],{stretch:L.stretch});
-  for(const[eid,q,str]of L.extra||[]){const m=ITEMS[eid].make(mulberry(Math.floor(r()*1e6)));placeModel(m,q,{stretch:str,max:1.2})}
+  placeModel(modeloDe(it,r),L.main||[0,0,w,d],{stretch:L.stretch});
+  for(const[eid,q,str]of L.extra||[]){const m=modeloDe(ITEMS[eid],mulberry(Math.floor(r()*1e6)));placeModel(m,q,{stretch:str,max:1.2})}
   if(L.park){const b=R(L.park);parkingLot(g,b.x0,b.z0,b.x1,b.z1,r,L.parkKind,d/2,L.esp);used.push(b)}
   // v0.17 (DEC-021): vagas soltas (caminhão na serraria, carro de bombeiro na porta) e pistas de passagem (posto de gasolina)
   for(const[x,z,kind]of L.slots||[]){const mk=new THREE.Group();mk.position.set(x,.03,z);mk.userData.slot={kind,a:d/2-z-.3,front:d/2,fixo:0};g.add(mk);used.push({x0:x-.2,x1:x+.2,z0:z-.4,z1:d/2})}
@@ -2672,7 +2828,7 @@ function decorateDemo(m,seed){const S=START;
 /* ================= Construir/remover ================= */
 function newState(type,seed,name,mode){mode=MODES[mode]?mode:'normal';const cx=MODES[mode].caixa;
   return{v:SAVE_VERSION,id:newCityId(),world:null,name:name||MAPS[type].city,type,seed,mode,title:0,metas:[],own:startOwn(),money:cx,hours:0,T:null,b:new Array(N*N).fill(null),part:new Int32Array(N*N).fill(-1),
-    stats:{harvests:0,hist:[],dayStart:cx,pop:0,gen:0,use:0,happy:60,incomeDay:0},news:[],speed:1};
+    stats:{harvests:0,hist:[],dayStart:cx,pop:0,gen:0,use:0,happy:60,incomeDay:0},news:[],speed:1,estilo:'classico'};
 }
 function stageOf(st){const d=ITEMS[st.id].crop;if(!d)return 0;const a=st.age||0;return a>=d.grow?3:a>=d.grow*.55?2:a>=d.grow*.2?1:0}
 const VARIANTS=5;
@@ -2762,12 +2918,12 @@ function keyFor(id,v,stage,mask,water,compact,prof){const d=ITEMS[id];
   // ponte (BUG-049): o primeiro lote do vão guarda o modelo da ponte inteira; os outros lotes do vão ficam vazios
   if(prof){const r=prof.run;return prof.k===0?`ponte:${r.ax}:${r.id}:${r.nA}:${r.nW}:${r.nB}`:'ponte:vazio'}
   if(d.rail&&!d.road)return`t:${mask}:${water?1:0}`;if(d.road)return`r:${id}:${mask}:${water?1:0}`;const k=variantOf(v);
-  if(d.crop)return`c:${id}:${stage}:${k}`;if(id==='ipe')return`m:ipe:${k}:${MCTX.ipe>.35?1:0}`;return`m:${id}:${k}`+(d.size&&!compact?':L':'')}
+  if(d.crop)return`c:${id}:${stage}:${k}`;if(id==='ipe')return`m:ipe:${k}:${MCTX.ipe>.35?1:0}`;return`m:${id}:${k}`+(d.size&&!compact?':L':'')+(MCTX.estilo!=='classico'&&(ESTILO_ITENS.has(id)||pintaItem(d))?':'+MCTX.estilo:'')}
 function buildFor(id,v,stage,mask,water,compact,prof){const d=ITEMS[id];
   if(d.road||d.rail){const nb={};DIRS.forEach(([k],j)=>{nb[k]=!!(mask&(1<<j))});
     if(prof)return prof.k===0?bridgeModel(prof.run):new THREE.Group();
     if(d.rail&&!d.road)return railModel(nb,!!water,mask);if(d.rail)return crossingModel(nb,!(mask&16));return roadModel(d,nb,!!water)}
-  const r=mulberry(variantOf(v)*7919+id.length*131+7);if(d.crop)return cropModel(id,stage,r);if(d.size&&!compact)return buildLot(id,r,d.size[0],d.size[1]);return d.make(r)}
+  const r=mulberry(variantOf(v)*7919+id.length*131+7);if(d.crop)return cropModel(id,stage,r);if(d.size&&!compact)return buildLot(id,r,d.size[0],d.size[1]);return modeloDe(d,r)}
 // máscara de vizinhos: trilho olha os trilhos; passagem de nível olha as ruas e guarda a direção do trilho no bit 16
 function maskOf(i){const st=W.b[i],d=ITEMS[st.id];if(d.rail&&!d.road)return railMask(i);return roadMask(i)|(d.rail&&st.rot?16:0)}
 function modelKey(i){const st=W.b[i];return keyFor(st.id,st.v,stageOf(st),maskOf(i),W.T[i]===1,st.sz===1,bridgePart(i))}
@@ -2842,7 +2998,7 @@ function removeAt(i,animate){i=anchorOf(i);if(i<0)return false;const st=W.b[i];c
   const wasRail=ITEMS[st.id].rail||ITEMS[st.id].station;W.b[i]=null;unmarkParts(i);dropObj(i,animate);tiles.forEach(markPaint);railDirty();if(wasRoad)refreshRoadNeighbors(i);if(wasRail)refreshRailAround(tiles);if(!wasRoad)refreshPathsAround(tiles);if(wasRoad||wasRail)refreshBridgesNear(i);return true}
 function clearWorld(){if(typeof clearVidaNova==='function')clearVidaNova();if(typeof clearTransporte==='function')clearTransporte();if(typeof clearPessoas==='function')clearPessoas();natClear();for(let i=0;i<N*N;i++){if(objs[i]){scene.remove(objs[i]);objs[i]=null}}spinners.clear();spinnersY.clear();beams.clear();bobbers.clear();animals.clear();clockHands.clear();chimneys.clear();warnSprites.clear();cars.forEach(c=>scene.remove(c.m));cars.length=0;if(typeof slotCar!=='undefined'){slotCar.clear();lotBusy.clear()}boats.forEach(b=>scene.remove(b.m));boats.length=0}
 function buildWorld(){
-  clearWorld();gnoise=noise2((W.seed%311)+3);refreshSeason();MCTX.ipe=SEASON.ipe;seasonGrass();
+  clearWorld();gnoise=noise2((W.seed%311)+3);refreshSeason();MCTX.ipe=SEASON.ipe;MCTX.estilo=estiloOk(W.estilo);seasonGrass();
   rebuildTerrainRegion(0,0,N-1,N-1);buildSkirt();rebuildParts();railDirty();bridgeDirty();
   for(let i=0;i<N*N;i++)if(W.b[i]){const o=makeObj(i);objs[i]=o;scene.add(o)}
   paintDirty=null;paintRegion(0,0,N-1,N-1);rebuildTufts();flushNature();
@@ -3764,7 +3920,7 @@ const ROLES={
 function limb(g,x,y,len,w,d,col,kind){const p=new THREE.Group();p.position.set(x,y,0);p.userData.dyn=1;p.userData.limb=kind;
   // v0.17.2: o passo dos visitantes dentro dos terrenos usa a mesma marca das pernas dos bichos (braço e perna opostos)
   p.userData.leg={pernaE:1,pernaD:-1,bracoE:-.7,bracoD:.7}[kind];B(p,w,len,d,col,0,-len,0);g.add(p);return p}
-function personModel(role,r){const g=new THREE.Group();const skin=pick(r,SKINS);let hair=pick(r,HAIRS);const fem=r()<.5;
+function personModel(role,r){const g=new THREE.Group();g.userData.pessoa=1;const skin=pick(r,SKINS);let hair=pick(r,HAIRS);const fem=r()<.5;
   let shirt=pick(r,['#d9493f','#3f7fc9','#f2b632','#5f9a5f','#7d5f9c','#e98aa8','#f4f1ea','#2f6b8f','#c96a3a']),pants=pick(r,['#2f4a73','#3b3f43','#8a7a5a','#4a5a3a','#1f2a33']),shoes='#2b2b2b',sleeve=null;
   let hairStyle=fem?'longo':'curto',hat=null,skirt=fem&&r()<.4,scale=1,shorts=false;
   const extras=[];
@@ -3784,6 +3940,9 @@ function personModel(role,r){const g=new THREE.Group();const skin=pick(r,SKINS);
     case'gari':shirt='#ef7a2a';pants='#ef7a2a';shoes='#141414';hat='bone';extras.push('faixas','vassoura');skirt=false;break;
     case'motorista':shirt='#f4f4f0';pants='#2b2f36';shoes='#141414';hat='motorista';extras.push('gravata');skirt=false;break;
   }
+  // DEC-030: moradores, idosos e universitários se vestem no jeito da região da cidade (estilo); uniformes não mudam
+  const re=ROUPA_ESTILO[MCTX.estilo];if(re&&['comum','idoso','universitario'].includes(role)){shirt=pick(r,re.camisa);pants=pick(r,re.calca);if(role==='comum'){if(r()<re.bermuda){shorts=true;skirt=false}
+    let q=r();for(const[h,pr]of re.chapeu){if(q<pr){hat=h;break}q-=pr}if(re.xadrez&&r()<re.xadrez)extras.push('xadrez')}}
   sleeve=sleeve||shirt;
   // pernas (com sapato) e quadril
   // BUG-056: a perna tem joelho (coxa e canela), para sentar com a canela para baixo em vez de esticar a perna inteira para a frente
@@ -3805,6 +3964,9 @@ function personModel(role,r){const g=new THREE.Group();const skin=pick(r,SKINS);
   if(hat==='capacete'){part(G.hemi,'#f2c230',.06,.04,.062,0,.162,0,g);C(g,.07,.006,.074,'#f2c230',0,.165,-.006)}
   if(hat==='obra'){part(G.hemi,'#f7d23a',.058,.036,.06,0,.162,0,g);B(g,.05,.006,.02,'#f7d23a',0,.164,.03)}
   if(hat==='palha'){C(g,.1,.006,.1,'#e3c46a',0,.168,0);C(g,.05,.024,.05,'#d9b85a',0,.17,0);B(g,.051,.006,.051,'#8a3a22',0,.172,0)}
+  // chapéu de couro do vaqueiro nordestino (aba virada na frente) e chapéu de feltro de Minas
+  if(hat==='couro'){C(g,.098,.006,.098,'#7a4a28',0,.168,0);C(g,.05,.03,.05,'#6b3f22',0,.17,0);const ab=B(g,.06,.022,.006,'#7a4a28',0,.168,.046);ab.rotation.x=-.5;for(const sx of[-1,1])S(g,.008,'#c9a15a',sx*.02,.186,.02)}
+  if(hat==='feltro'){C(g,.086,.006,.086,'#3b3530',0,.168,0);C(g,.052,.028,.052,'#3b3530',0,.17,0);B(g,.053,.006,.053,'#1f1a17',0,.172,0)}
   if(hat==='balde'){C(g,.075,.006,.075,'#f4f1ea',0,.168,0);C(g,.052,.022,.052,'#f4f1ea',0,.17,0)}
   if(hat==='bone'){C(g,.054,.018,.054,role==='gari'?'#ef7a2a':'#2f5f9e',0,.168,0);B(g,.04,.005,.03,role==='gari'?'#ef7a2a':'#2f5f9e',0,.168,.03)}
   if(hat==='motorista'){C(g,.056,.02,.056,'#2b2f36',0,.17,0);B(g,.04,.005,.02,'#141414',0,.168,.028)}
@@ -3896,7 +4058,7 @@ function spawnPed(spot,role){const[i,dx,dz,a]=spot;role=role||pedRole(a)||'comum
   // anda ao longo da rua, com a construção do lado da calçada
   const cand=DIRS.map(([,x,z])=>[x,z]).filter(([x,z])=>(x!==dx||z!==dz)&&(x!==-dx||z!==-dz));const f=cand[Math.floor(Math.random()*cand.length)];
   const[rx,rz]=rightOf(f[0],f[1]);const s=isPath(i)?1:(rx===dx&&rz===dz)?1:-1;const[cx,cz]=tileC(i);const L=isPath(i)?PATH_LANE:laneOf(s);
-  const v=Math.floor(Math.random()*6);const m=getModel(`p:${role}:${v}`,()=>personModel(role,mulberry(v*977+role.length*31+3)));scene.add(m);
+  const v=Math.floor(Math.random()*6);const m=getModel(`p:${role}:${v}:${MCTX.estilo}`,()=>personModel(role,mulberry(v*977+role.length*31+3)));scene.add(m);
   const p={id:++pedId,m,role,tile:i,f,s,wp:[{x:cx+f[0]*.5+rx*L,z:cz+f[1]*.5+rz*L}],x:cx+rx*L,z:cz+rz*L,head:Math.atan2(f[0],f[1]),v:0,vmax:ROLES[role].v*(.9+Math.random()*.2),
     life:35+Math.random()*60,ph:Math.random()*6,teimoso:Math.random()<.25,sigWait:0,stopped:0,holdSig:false,queued:false,yieldTo:-1,wait:0,cross:null,fade:0,limbs:{}};
   m.traverse(o=>{if(o.userData&&o.userData.limb)p.limbs[o.userData.limb]=o});m.position.set(p.x,0,p.z);m.rotation.y=p.head;m.scale.setScalar(.01);p.grow=0;peds.push(p);return p}
@@ -4441,7 +4603,7 @@ function toMenu(){
   ['#hud','#tray','#hint','#cam','#toast'].forEach(s=>$(s).hidden=true);pops.forEach(p=>p.el.remove());pops.length=0;$('#menu').hidden=false;refreshMenu()}
 function serialize(){return{v:SAVE_VERSION,id:W.id,world:W.world||null,name:W.name,type:W.type,seed:W.seed,money:Math.round(W.money),hours:W.hours,speed:W.speed,mode:W.mode||'normal',title:W.title|0,own:Array.from(W.own||startOwn()).join(''),metas:(W.metas||[]).slice(),arr:+(W._arrAcc||0).toFixed(2),
   T:Array.from(W.T).join(''),b:W.b.map((o,i)=>o?[i,o.id,+o.v.toFixed(5),+(o.rot||0).toFixed(3),+(o.age||0).toFixed(2),o.occ||0].concat(o.sz===1?[1]:[]):null).filter(Boolean),
-  stats:W.stats,news:W.news.slice(0,30),cam:[+cam.target.x.toFixed(2),+cam.target.z.toFixed(2),+cam.rotTarget.toFixed(3),+cam.zoomTarget.toFixed(3),+cam.elTarget.toFixed(3)],tut:W.tut?{s:W.tut.step|0,d:!!W.tut.done}:null}}
+  stats:W.stats,news:W.news.slice(0,30),cam:[+cam.target.x.toFixed(2),+cam.target.z.toFixed(2),+cam.rotTarget.toFixed(3),+cam.zoomTarget.toFixed(3),+cam.elTarget.toFixed(3)],tut:W.tut?{s:W.tut.step|0,d:!!W.tut.done}:null,estilo:estiloOk(W.estilo)}}
 // BUG-015: o save é validado antes de virar mundo; um arquivo quebrado nunca derruba o jogo
 function validSave(s){return!!(s&&typeof s==='object'&&MAPS[s.type]&&typeof s.T==='string'&&(s.T.length===N*N||s.T.length===START*START)&&/^[012]+$/.test(s.T)&&Array.isArray(s.b)&&isFinite(s.money)&&isFinite(s.hours))}
 // v1→v2: validava o clima salvo. v2→v3: o clima e a hora passaram a vir de Brasília ao vivo, então o clima sai do save
@@ -4463,9 +4625,11 @@ function migrateSave(s){if(!s.v||s.v<3){delete s.weather;s.v=3}if(s.v<4){if(!s.i
       s.b=s.b.filter(Array.isArray).map(r=>{const i=r[0];return[I0(i%START,(i/START)|0)].concat(r.slice(1))}).concat(fora.map(([i,id])=>[i,id,Math.random(),0,0,0]));}
     delete s.own;s.v=7}
   // v7→v8: cidade do tutorial (DEC-029); cidades antigas não têm tutorial
-  if(s.v<8){if(!s.tut||typeof s.tut!=='object')s.tut=null;s.v=8}return s}
+  if(s.v<8){if(!s.tut||typeof s.tut!=='object')s.tut=null;s.v=8}
+  // v8→v9: estilo da cidade (DEC-030); cidades antigas ficam no clássico
+  if(s.v<9){s.estilo='classico';s.v=9}return s}
 function newCityId(){return Date.now().toString(36)+Math.floor(Math.random()*1e6).toString(36)}
-function deserialize(s){if(!validSave(s))throw new Error('save inválido');s=migrateSave(s);const w=newState(s.type,s.seed,s.name);Object.assign(w,{id:String(s.id||newCityId()).slice(0,40),world:WORLDS[s.world]?s.world:null,money:s.money,hours:s.hours,speed:s.speed??1,mode:MODES[s.mode]?s.mode:'normal',title:clamp(s.title|0,0,TITLES.length-1),metas:Array.isArray(s.metas)?s.metas.filter(x=>typeof x==='string'):[],_arrAcc:+s.arr||0,own:typeof s.own==='string'&&s.own.length===NBK*NBK&&/^[01]+$/.test(s.own)?Uint8Array.from(s.own.split('').map(Number)):startOwn(),stats:Object.assign(w.stats,s.stats||{}),news:s.news||[],cam:s.cam,tut:s.tut&&typeof s.tut==='object'?{step:clamp(s.tut.s|0,0,99),done:!!s.tut.d}:null});
+function deserialize(s){if(!validSave(s))throw new Error('save inválido');s=migrateSave(s);const w=newState(s.type,s.seed,s.name);Object.assign(w,{id:String(s.id||newCityId()).slice(0,40),world:WORLDS[s.world]?s.world:null,money:s.money,hours:s.hours,speed:s.speed??1,mode:MODES[s.mode]?s.mode:'normal',title:clamp(s.title|0,0,TITLES.length-1),metas:Array.isArray(s.metas)?s.metas.filter(x=>typeof x==='string'):[],_arrAcc:+s.arr||0,own:typeof s.own==='string'&&s.own.length===NBK*NBK&&/^[01]+$/.test(s.own)?Uint8Array.from(s.own.split('').map(Number)):startOwn(),stats:Object.assign(w.stats,s.stats||{}),news:s.news||[],cam:s.cam,tut:s.tut&&typeof s.tut==='object'?{step:clamp(s.tut.s|0,0,99),done:!!s.tut.d}:null,estilo:estiloOk(s.estilo)});
   w.T=Uint8Array.from(String(s.T).split('').map(Number));for(const r of s.b){if(!Array.isArray(r))continue;const[i,id,v,rot,age,occ,sz]=r;if(ITEMS[id]&&i>=0&&i<N*N){w.b[i]={id,v:+v||0,rot:+rot||0,age:+age||0,occ:+occ||0};if(sz===1)w.b[i].sz=1}}fixFootprints(w);return w}
 function saveGame(silent){if(!W||!game.active)return false;const data=serialize();const ok=store.set(SAVE_KEY,data)&&saveCitySlot(data);
   if(!ok){if(!game._warnedSave||!silent){game._warnedSave=true;toast('Não foi possível salvar neste navegador. Ele pode estar em modo privado ou sem espaço.',true)}return false}
@@ -4491,7 +4655,9 @@ function newWorld(id){const wd=WORLDS[id];const m=genWorld(id);const w=newState(
   // mundo pronto já começa no título que os moradores dele valem
   w.title=titleForPop(m.items.reduce((a,[,id])=>a+(ITEMS[id].home?Math.floor(ITEMS[id].home*.6):0),0));applyGen(w,m);
   news(`Você chegou a ${m.name}. ${wd.desc}`);saveGame(true)}
-function newGame(type,seed,mode,o){o=o||{};const m=genMap(type,seed,{kit:!!o.kit});const w=newState(type,seed,null,mode);w.T=m.T;for(const[i,id]of m.items){w.b[i]={id,v:Math.random(),rot:0,age:ITEMS[id].crop?Math.random()*10:0,occ:ITEMS[id].home?Math.floor(ITEMS[id].home*.6):0}}
+function newGame(type,seed,mode,o){o=o||{};const m=genMap(type,seed,{kit:!!o.kit});const w=newState(type,seed,null,mode);w.T=m.T;
+  // DEC-030: o estilo escolhido na tela do mapa vale para a cidade inteira
+  w.estilo=estiloOk(o.estilo);for(const[i,id]of m.items){w.b[i]={id,v:Math.random(),rot:0,age:ITEMS[id].crop?Math.random()*10:0,occ:ITEMS[id].home?Math.floor(ITEMS[id].home*.6):0}}
   W=w;for(const[i,id]of m.items){const d=ITEMS[id];if(!d.road&&!d.crop&&!isNatureId(id))w.b[i].rot=m.rots&&m.rots.has(i)?m.rots.get(i):faceRoad(i,0)}
   // BUG-036: m.col/m.row são da área inicial; sem o OFF a câmera nascia na borda da cidade
   w._center=[m.col+OFF-HALF+.5,m.row+OFF-HALF+.5];w.stats.dayStart=w.money;
@@ -4545,7 +4711,7 @@ for(const sel of['#tabs','#items'])$(sel).addEventListener('wheel',e=>{const el=
 function renderItems(){const list=ORDER.filter(id=>ITEMS[id].cat===game.cat).sort((a,b)=>ITEMS[a].cost-ITEMS[b].cost);
   $('#items').innerHTML=list.map(id=>{const d=ITEMS[id];const per=d.mode==='single'?'':'/lote';const lk=!unlocked(id);
     // DEC-013: item de título acima aparece com cadeado e o requisito (não some: ver o que vem pela frente dá vontade de crescer)
-    return`<button class="item${game.tool.item===id&&game.tool.mode==='build'?' on':''}${W&&W.money<priceOf(d)?' poor':''}${lk?' locked':''}" data-id="${id}" title="${lk?lockText(id):d.desc}">${THUMBS[id]?`<img alt="" src="${THUMBS[id]}">`:'<span class="noimg" aria-hidden="true"></span>'}<b>${d.name}</b><small>${lk?icon('lock')+TITLES[tierOf(id)].nome:brl(priceOf(d))+per}</small></button>`}).join('')}
+    return`<button class="item${game.tool.item===id&&game.tool.mode==='build'?' on':''}${W&&W.money<priceOf(d)?' poor':''}${lk?' locked':''}" data-id="${id}" title="${lk?lockText(id):d.desc}">${THUMBS[id]?`<img alt="" src="${THUMBS[thumbKey(id)]}">`:'<span class="noimg" aria-hidden="true"></span>'}<b>${d.name}</b><small>${lk?icon('lock')+TITLES[tierOf(id)].nome:brl(priceOf(d))+per}</small></button>`}).join('')}
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('.tab');if(!b)return;game.cat=b.dataset.cat;SFX.click();renderTabs();renderItems()});
 $('#items').addEventListener('click',e=>{const b=e.target.closest('.item');if(!b)return;SFX.click();const id=b.dataset.id;if(!unlocked(id)){toast(lockText(id)+'.');return}if(game.tool.mode==='build'&&game.tool.item===id)setTool('look');else setTool('build',id)});
 $$('.mode').forEach(b=>b.addEventListener('click',()=>{SFX.click();setTool(b.dataset.mode)}));
@@ -4981,7 +5147,7 @@ function titlesHtml(st){const k=W.title|0,M=modeOf();
       :`<p class="tl-req">${icon('person')}${fmt(n.pop)} moradores${n.feliz?` · ${icon('smile')}${n.feliz}% de felicidade`:''}</p>`;
     const ids=t.lib.split(' ').filter(id=>ITEMS[id]&&ITEMS[id].cat!=='oculto').sort((a,b)=>ITEMS[a].cost-ITEMS[b].cost);
     const pres=t.presente?`<p class="tl-gift"><span class="coin"></span>Presente da prefeitura: <b>${brl(Math.round(t.presente*M.renda))}</b></p>`:'';
-    const grade=`<div class="tl-lib">${ids.map(id=>`<span title="${esc(ITEMS[id].name)}">${THUMBS[id]?`<img alt="${esc(ITEMS[id].name)}" src="${THUMBS[id]}">`:''}<small>${esc(ITEMS[id].name)}</small></span>`).join('')}</div>`;
+    const grade=`<div class="tl-lib">${ids.map(id=>`<span title="${esc(ITEMS[id].name)}">${THUMBS[id]?`<img alt="${esc(ITEMS[id].name)}" src="${THUMBS[thumbKey(id)]}">`:''}<small>${esc(ITEMS[id].name)}</small></span>`).join('')}</div>`;
     // o que já está liberado fica recolhido; o que vem pela frente aparece aberto
     const lib=j<=k?`<details class="tl-det"><summary>${j===0?'Começa com':'Liberou'} ${ids.length} construções</summary>${grade}</details>`:`<p class="tl-libt">Libera ${ids.length} construções</p>${grade}`;
     return`<li class="tl-${est}"><i class="tl-mark">${mark}</i><div class="tl-body"><div class="tl-head"><b>${t.nome}</b><em>${chip}</em></div>${req}${pres}${lib}</div></li>`}).join('');
@@ -5146,14 +5312,19 @@ $('#cityList').addEventListener('click',e=>{const o=e.target.closest('[data-open
     deleteCity(d.dataset.del);SFX.remove&&SFX.remove();renderCityList();if(!cityList().length){$('#loads').hidden=true;$('#menu').hidden=false;refreshMenu()}}});
 const mapSeeds={};
 let pickedMode='normal';
+// DEC-030: estilo das moradias da cidade nova, escolhido junto com o modo
+let pickedEstilo='classico';
+function renderEstiloPick(){const el=$('#estiloPick');if(!el)return;el.innerHTML=ESTILOS.map(e=>{const im=THUMBS[e.id==='classico'?'casa':'casa@'+e.id];
+  return`<button role="radio" aria-checked="${e.id===pickedEstilo}" class="estilo-opt${e.id===pickedEstilo?' on':''}" data-pest="${e.id}">${im?`<img alt="" src="${im}">`:''}<span><b>${esc(e.nome)}</b><small>${esc(e.desc)}</small></span></button>`}).join('')}
 function renderModePick(){$('#modePick').innerHTML=MODE_ORDER.map(k=>{const m=MODES[k];return`<button role="radio" aria-checked="${k===pickedMode}" class="mode-opt${k===pickedMode?' on':''}" data-pmode="${k}"><b>${m.medalha?icon('medal'):''}${m.nome}</b><small>${m.desc}</small></button>`}).join('')}
 $('#modePick').addEventListener('click',e=>{const b=e.target.closest('[data-pmode]');if(!b)return;pickedMode=b.dataset.pmode;SFX.click();renderModePick()});
-function openMaps(){$('#menu').hidden=true;$('#maps').hidden=false;renderModePick();const g=$('#mapGrid');
+$('#estiloPick').addEventListener('click',e=>{const b=e.target.closest('[data-pest]');if(!b)return;pickedEstilo=b.dataset.pest;SFX.click();renderEstiloPick()});
+function openMaps(){$('#menu').hidden=true;$('#maps').hidden=false;renderModePick();renderEstiloPick();const g=$('#mapGrid');
   g.innerHTML=Object.entries(MAPS).map(([k,m])=>`<article class="map-card"><canvas id="pv_${k}" width="640" height="400"></canvas><div class="map-body"><span class="eyebrow">Mapa gerado</span><h3>${m.name}</h3><p>${m.desc}</p><div class="map-actions"><button class="btn soft" data-shuffle="${k}">${icon('shuffle')}Embaralhar</button><button class="btn dark" data-start="${k}">Começar aqui</button></div></div></article>`).join('');
   Object.keys(MAPS).forEach(k=>{mapSeeds[k]=Math.floor(Math.random()*1e9);drawPreview(k)})}
 $('#mapGrid').addEventListener('click',e=>{const s=e.target.closest('[data-shuffle]'),st=e.target.closest('[data-start]');if(s){const k=s.dataset.shuffle;mapSeeds[k]=Math.floor(Math.random()*1e9);drawPreview(k);SFX.click()}if(st){SFX.place('build');
   // DEC-029: a primeira cidade (ou a pedida pelo botão Tutorial) abre com o tutorial, no mapa e no modo escolhidos
-  newGame(st.dataset.start,mapSeeds[st.dataset.start],pickedMode,{tutorial:typeof tutNaNova==='function'&&tutNaNova()})}});
+  newGame(st.dataset.start,mapSeeds[st.dataset.start],pickedMode,{tutorial:typeof tutNaNova==='function'&&tutNaNova(),estilo:pickedEstilo})}});
 const CROP_PV={trigo:'#e2c25c',milho:'#c9c24f',girassol:'#f2c623',horta:'#7fb35a',pomar:'#5f9a4c',soja:'#a9b856',tulipas:'#e0607e',lavanda:'#8a63c7',cana:'#8fbf5a',vinhedo:'#6b4f7a',cafe_pe:'#2f6b3a'};
 function drawPreview(k){drawPreviewData($('#pv_'+k),genMap(k,mapSeeds[k]),mapSeeds[k])}
 // DEC-014: a prévia mostra a área inicial (os 48×48 do centro)
@@ -5173,13 +5344,15 @@ function makeThumbs(onProgress){
     // BUG-014: se o navegador recusar um segundo contexto WebGL, o jogo segue sem miniaturas
     let tr;try{tr=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true})}catch(e){console.warn('Miniaturas desligadas:',e);res();return}tr.setSize(116,116);tr.setPixelRatio(1);
     const sc=new THREE.Scene();sc.add(new THREE.HemisphereLight('#ffffff','#7f8f5f',.75));const dl=new THREE.DirectionalLight('#fff4e0',.75);dl.position.set(3,6,4);sc.add(dl);
-    const oc=new THREE.OrthographicCamera(-1,1,1,-1,.1,50);const ids=ORDER.slice();let k=0;
-    function one(){if(k>=ids.length){tr.dispose();res();return}const id=ids[k++];const d=ITEMS[id];const g=new THREE.Group();
+    const oc=new THREE.OrthographicCamera(-1,1,1,-1,.1,50);
+    // DEC-030: as moradias ganham também a miniatura de cada estilo (chave 'casa@nordeste')
+    const ids=ORDER.slice();for(const e of ESTILOS)if(e.id!=='classico')for(const m of ESTILO_ITENS)ids.push(m+'@'+e.id);let k=0;
+    function one(){if(k>=ids.length){tr.dispose();res();return}const key=ids[k++],[id,est]=key.split('@');const d=ITEMS[id];const g=new THREE.Group();
       RB(g,1,.16,1,id==='lago'?'#6aa9cc':d.crop?'#7b5a3c':['coqueiro'].includes(id)?'#e4d3a2':'#a3c77f',0,-.16,0,.05);RB(g,1,.14,1,'#7a5e43',0,-.3,0,.05);
-      if(d.road)g.add(roadModel(d,{n:true,s:true},false));else if(d.crop)g.add(cropModel(id,3,mulberry(5)));else if(d.make){const m=d.make(mulberry(11));m.position.x=0;m.position.z=0;g.add(m)}
+      if(d.road)g.add(roadModel(d,{n:true,s:true},false));else if(d.crop)g.add(cropModel(id,3,mulberry(5)));else if(d.make){const m=modeloDe(d,mulberry(11),est||'classico');m.position.x=0;m.position.z=0;g.add(m)}
       sc.add(g);const box=new THREE.Box3().setFromObject(g);const hgt=box.max.y;const s=Math.max(.95,hgt*.75+.55);
       oc.left=-s;oc.right=s;oc.top=s;oc.bottom=-s;oc.position.set(4,4.2,4);oc.lookAt(0,Math.min(hgt*.38,.5),0);oc.updateProjectionMatrix();
-      try{tr.render(sc,oc);THUMBS[id]=tr.domElement.toDataURL()}catch(e){}sc.remove(g);onProgress(k/ids.length);setTimeout(one,0)}
+      try{tr.render(sc,oc);THUMBS[key]=tr.domElement.toDataURL()}catch(e){}sc.remove(g);onProgress(k/ids.length);setTimeout(one,0)}
     one()})}
 
 // DEC-024: tela cheia e celular deitado.
@@ -5467,7 +5640,7 @@ if(navigator.webdriver||/[?&]teste\b/.test(location.search)){
     setClock(ms){clockOverride=ms;_bCache=null;_rsT=-1e12;refreshSeason();checkSeasonVisuals();updateLighting(.016,0)},setWeather(k){weatherForce=k},popMoney,audioInit,THUMBS,ORDER,canPlace,planFor,applyBuild,hasRoadAccess,pops,prevMesh,musicTick,scheduleStep,buildMusicChain,news,cityIssues,checkIssues,doIssueAction,setTrayMin,get issuesNow(){return issuesNow},setIssueToasts(v){issueToastsOn=v},richToast,wpos,sun,machines,ducks,capys,butterflies,planes,harvestMachine,spawnDucks,spawnCapys,spawnButterflies,computeCropBonus,cropGrow,cropVal,industryRate,cityBoost,spinnersY,beams,CATS,computeStats,near,anchorOf,fpTiles,fitAt,isMulti,sizeOf,fixFootprints,buildLot,QROT,trains,barriers,closedX,airPlanes,ships,isRail,railInfo,railMask,railLink,stationTrack,lotTile,stationLinked,stationOnLoop,railFlowReverse,pathPoint,updateTransporte,manageTransport,forceAirplane,forceShip,portDock,cityIssues,fpSide,CATS,updateCars,cityBoost,trainReverse,placeTrain,peds,personModel,ROLES,waterTopMat,spawnCar,spawnParked,newTrip,lotSlots,lotTargets,carRoute,slotCar,lotBusy,frontRoad,carModel,updateAnimals,spawnPed,pedSpawnSpots,managePeds,updatePeds,updatePessoas,updateSignals,carLight,walkOk,isJunction,isSignal,signalLamps,pedCrossing,pedRoute,get sigT(){return sigT},sigSet,redLeft,onWalk,checkIssues,tryVisit,lotSeats,seatsTaken,bridgeProfile,bridgeRuns,bridgeH,bridgePart,deckLift,lowBridge,shipPath,shipChannel,shipLine,waterShore,wxSlot,WX_SLOT,spawnMudanca,cityEntrance,arrivalInfo,upgradeOf,doUpgrade,UPGRADE,nearPop,fpCenter,brazukaLogoMat,metroNear,arrivalsPerCycle,openObra,spawnEsp,manageEmergencia,animalGap,ANIMAL_SHAPE,sitPose,bench,mulberry,tube,addGente,chicken,personModel,cow,horse,sheep,ZOO_MAKE,roadModel,planeModel,shipModel,winMat,lampMat,tailMat,ESP,hasSlots,upgradeGain,brl,genAt,face,set sigT(v){sigT=v},refreshObj,forcePlane,updateVidaNova,cityList,saveCitySlot,deleteCity,loadCity,migrateCities,cityKey,newWorld,genWorld,WORLDS,WORLD_ORDER,weatherSeen,get booted(){return RV.booted},get fatal(){return RV.fatal},
     ECON,MODES,TITLES,GOALS,TIER,unlocked,tierOf,titleForPop,titleNeed,progressTick,priceOf,modeOf,lockText,
     groundAt,get landSel(){return landSel},closePanel,OFF,START,BLK,NBK,I0,LAND,owned,blockOf,startOwn,buyLand,landPrice,landState,landInfo,landRing,refreshLand,openLand,landSigns,landVeil,ownedBounds,genOuter,
-    tut,TUT_PASSOS,tutStart,tutStop,tutTick,tutConclui,tutNaNova,tutLugar,genMap,panelKind:()=>panelKind,openPanel,
+    tut,TUT_PASSOS,tutStart,tutStop,tutTick,tutConclui,tutNaNova,tutLugar,genMap,MCTX,ESTILOS,modeloDe,panelKind:()=>panelKind,openPanel,
     tick(h){for(let k=0;k<h;k++){W.hours+=1;lastHour=Math.floor(W.hours);hourTick()}}};
 }
 const hot=window.claude&&window.claude.hot;
