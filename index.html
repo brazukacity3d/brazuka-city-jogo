@@ -2518,6 +2518,241 @@ ITEMS.estacao.fitBonus=(a,rot,q)=>{const st={id:'estacao',rot};const[w,d]=ITEMS.
 // v0.16 (DEC-019): o metrô é definido em 03b (com as torres), mas na bandeja fica no fim da aba Transporte, depois do porto
 if(ORDER.includes('metro'))ORDER.push(ORDER.splice(ORDER.indexOf('metro'),1)[0]);
 
+/* ---- js/03f-eventos.js ---- */
+'use strict';
+/* ================= Eventos do ano (DEC-031) =================
+   Festas que aparecem sozinhas na data certa, pelo relógio de Brasília:
+   Natal (1º/12 a 6/1, com fogos no Réveillon), Carnaval (sexta antes do Carnaval à Quarta de Cinzas) e Festa Junina (junho).
+   Cada festa tem enfeite automático (luzinhas nas construções), construções de época e gente da festa. */
+
+// Domingo de Páscoa (algoritmo de Meeus/Jones/Butcher), em dias desde 1/1/1970 (UTC)
+function pascoaDia(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;
+  return Math.round(Date.UTC(y,mo-1,da)/864e5)}
+// qual festa vale numa data de Brasília (b = brasiliaAt)
+function eventoDe(b){const md=b.mo*100+b.d,dia=Math.round(Date.UTC(b.y,b.mo-1,b.d)/864e5),p=pascoaDia(b.y);
+  if(md>=1201||md<=106)return'natal';
+  // Carnaval: da sexta (Páscoa − 51) até a Quarta-feira de Cinzas (Páscoa − 46)
+  if(dia>=p-51&&dia<=p-46)return'carnaval';
+  if(b.mo===6)return'junina';return null}
+// Réveillon: da 23h de 31/12 até 1h de 1º/1
+const reveillonDe=b=>b.mo===12&&b.d===31&&b.h>=23||b.mo===1&&b.d===1&&b.h<1;
+const EVENTOS={natal:{n:'Natal',dica:'A cidade se enfeitou sozinha. Árvore gigante, presépio e feira de Natal estão na bandeja até 6 de janeiro.'},
+  carnaval:{n:'Carnaval',dica:'Bloco na rua! As construções de Carnaval ficam na bandeja até a Quarta-feira de Cinzas.'},
+  junina:{n:'Festa Junina',dica:'Bandeirinhas na rua e arraiá liberado durante junho.'}};
+const EVT={atual:null,reveillon:false};
+// testes: setEvento('natal') força uma festa, setEvento('nenhum') desliga e setEvento() volta ao relógio (os testes antigos abrem com 'nenhum')
+let evtForce=typeof window!=='undefined'&&window.__RV_EVT||undefined;
+const festaDe=b=>evtForce!==undefined?(evtForce==='nenhum'?null:evtForce):eventoDe(b);
+function setEvento(k){evtForce=k;checkEventos(true)}
+// construção de época fora da sua festa: fica na cidade, apagada, e volta a funcionar no ano seguinte
+const evtOff=d=>!!d.evento&&EVT.atual!==d.evento;
+const enfeitesOn=()=>!(typeof prefs!=='undefined'&&prefs.enfeites===false);
+
+/* ---------- luzinhas: lâmpadas coloridas que acendem à noite e piscam em duas turmas ---------- */
+const LUZ_CORES=['#ff4a3d','#ffd23a','#3ad16b','#3a9bff','#ff7ad9'];
+const luzMats=LUZ_CORES.map(c=>new THREE.MeshLambertMaterial({color:c,emissive:c,emissiveIntensity:.25}));
+const _dotTex=canvasTex(64,(x,s)=>{const g=x.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.35,'rgba(255,255,255,.9)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,s,s)});
+const luzPts=[0,1].map(()=>new THREE.PointsMaterial({size:.05,map:_dotTex,vertexColors:true,transparent:true,depthWrite:false,sizeAttenuation:true}));
+// lâmpada de modelo (árvore, feira): bolinha com material que brilha à noite
+function bulb(g,x,y,z,k,r=.022){return S(g,r,luzMats[k%luzMats.length],x,y,z)}
+let _evtBlink=0;
+// a câmera é ortográfica: o tamanho do ponto vai em pixels, então acompanha o zoom
+const pxUnid=()=>innerHeight*camera.zoom/Math.max(1e-3,camera.top-camera.bottom);
+function updateEventos(dt,clock){const lb=typeof litBlend==='number'?litBlend:0;_evtBlink+=dt;const t=Math.floor(_evtBlink/.7)%2;
+  // fora da festa, as construções de época ficam apagadas
+  const on=!!EVT.atual;luzMats.forEach((m,k)=>m.emissiveIntensity=on?.22+lb*(k%2===t?1.25:.55):0);
+  const px=pxUnid();luzPts.forEach((m,k)=>{m.size=Math.max(1.5,(.028+lb*.022)*px);m.opacity=.75+lb*(k===t?.25:-.2)});
+  updateFogos(dt)}
+
+/* ---------- enfeite automático nas construções ---------- */
+const ENFEITE_CATS=new Set(['moradias','comercio','servicos','educacao','monumentos']);
+const _ev=new THREE.Vector3();
+// medidas do prédio (sem o chão do lote nem os arbustos): pontos do modelo acima de 0,22
+function medidaPredio(inner,id){const xs=[],zs=[],ys=[];const poste=M('#3a4448');
+  // terreno grande: só a área do prédio (main), sem o estacionamento
+  const lt=LOTS[id],cl=lt&&lt.main?[lt.main[0]-lt.size[0]/2,lt.main[1]-lt.size[1]/2,lt.main[2]-lt.size[0]/2,lt.main[3]-lt.size[1]/2]:null;
+  inner.traverse(o=>{if(!o.isMesh||!o.geometry||!o.geometry.attributes.position||o.userData.decor||o.material===lampMat||o.material===poste)return;const p=o.geometry.attributes.position;o.updateMatrix();
+    for(let k=0;k<p.count;k++){_ev.fromBufferAttribute(p,k).applyMatrix4(o.matrix);if(_ev.y<.22||cl&&(_ev.x<cl[0]||_ev.x>cl[2]||_ev.z<cl[1]||_ev.z>cl[3]))continue;xs.push(_ev.x);zs.push(_ev.z);ys.push(_ev.y)}});
+  if(xs.length<8)return null;
+  // pontas soltas (bandeira, antena, cruz, arbusto alto) ficam de fora: 3% de cada lado
+  const q=(a,f)=>{a.sort((u,v)=>u-v);return a[Math.min(a.length-1,Math.floor(a.length*f))]};
+  return{x0:q(xs,.03),x1:q(xs,.97),z0:q(zs,.03),z1:q(zs,.97),top:q(ys,.97)}}
+// varal de lâmpadas pelo contorno, com uma barriguinha entre os cantos; prédio alto ganha fios descendo nos cantos
+function luzinhas(m,seed,podeAlto=true){const pos=[[],[]],col=[[],[]],c=new THREE.Color();let n=0;
+  const put=(x,y,z)=>{const t=n%2;c.set(LUZ_CORES[(n+seed)%LUZ_CORES.length]);pos[t].push(x,y,z);col[t].push(c.r,c.g,c.b);n++};
+  const alto=podeAlto&&m.top>1.25,h=alto?m.top-.02:clamp(m.top*.62,.2,.48),e=.025,X0=m.x0-e,X1=m.x1+e,Z0=m.z0-e,Z1=m.z1+e;
+  const lado=(ax,az,bx,bz)=>{const L=Math.hypot(bx-ax,bz-az),k=Math.max(2,Math.round(L/.045));for(let j=0;j<k;j++){const u=j/k;put(ax+(bx-ax)*u,h-.025*Math.sin(Math.PI*u),az+(bz-az)*u)}};
+  lado(X0,Z1,X1,Z1);lado(X1,Z1,X1,Z0);lado(X1,Z0,X0,Z0);lado(X0,Z0,X0,Z1);
+  if(alto)for(const[x,z]of[[X0,Z0],[X1,Z0],[X1,Z1],[X0,Z1]])for(let y=.12;y<h;y+=.06)put(x,y,z);
+  const g=new THREE.Group();g.userData.decor=1;
+  for(const t of[0,1]){if(!pos[t].length)continue;const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos[t],3));geo.setAttribute('color',new THREE.Float32BufferAttribute(col[t],3));
+    const p=new THREE.Points(geo,luzPts[t]);p.userData.decor=1;p.renderOrder=3;g.add(p)}
+  return g}
+// estrela de cinco pontas, de pé, centrada em (x,y,z), que brilha à noite
+const _estGeo=(()=>{const sh=new THREE.Shape();for(let k=0;k<10;k++){const a=k/10*Math.PI*2+Math.PI/2,rr=k%2?.2:.5;k?sh.lineTo(Math.cos(a)*rr,Math.sin(a)*rr):sh.moveTo(Math.cos(a)*rr,Math.sin(a)*rr)}sh.closePath();const g=new THREE.ExtrudeGeometry(sh,{depth:.16,bevelEnabled:false});g.translate(0,0,-.08);return g})();
+function estrela(g,x,y,z,s){const m=new THREE.Mesh(_estGeo,luzMats[1]);m.scale.setScalar(s);m.position.set(x,y,z);m.castShadow=true;g.add(m);const m2=m.clone();m2.rotation.y=Math.PI/2;g.add(m2);return m}
+// arvorezinha de Natal (frente da prefeitura, feira): galhos facetados, bolas, lâmpadas e estrela
+function arvoreNatal(g,x,z,s=1,seed=0){C(g,.05*s,.06*s,.05*s,'#6e4b33',x,0,z);C(g,.12*s,.04*s,.12*s,'#b8402f',x,0,z);
+  [[.32,.2,.05],[.25,.18,.15],[.18,.16,.25],[.1,.12,.34]].forEach(([w,h,y],k)=>{const m=part(_cone10,k%2?'#2f7a3c':'#2a6b35',w*s,h*s,w*s,x,y*s,z,g);m.rotation.y=k*.4});
+  for(let k=0;k<12;k++){const a=k*2.4+seed,lv=k%4,y=.07+lv*.095,rr=(.14-lv*.032)*s;if(k%3)bulb(g,x+Math.cos(a)*rr,y*s,z+Math.sin(a)*rr,k+seed,.022*s);else bola(g,x+Math.cos(a)*rr,y*s,z+Math.sin(a)*rr,k+seed,.03*s)}
+  estrela(g,x,.5*s,z,.07*s);return g}
+const _decCache=new Map();
+// varal de luz cruzando a rua reta, de calçada a calçada, a cada três lotes
+function varalRua(i,d,inner){if(!d.road||d.road.kind!=='rua'||d.rail)return;const x=i%N,z=Math.floor(i/N);if((x+z)%3)return;
+  const ex=isRoad(nbr(i,1,0))&&isRoad(nbr(i,-1,0)),ez=isRoad(nbr(i,0,1))&&isRoad(nbr(i,0,-1));if(ex===ez)return;
+  const g=new THREE.Group();g.userData.decor=1;const a=ex?[0,0,-.47]:[-.47,0,0],b=ex?[0,0,.47]:[.47,0,0],pos=[[],[]],col=[[],[]],c=new THREE.Color();
+  for(const p of[a,b])rod(g,[p[0],0,p[2]],[p[0],.46,p[2]],.008,'#3a4448');
+  for(let k=0;k<=24;k++){const u=k/24,t=k%2;c.set(LUZ_CORES[(k+x)%LUZ_CORES.length]);pos[t].push(a[0]+(b[0]-a[0])*u,.45-.09*Math.sin(Math.PI*u),a[2]+(b[2]-a[2])*u);col[t].push(c.r,c.g,c.b)}
+  for(const t of[0,1]){const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos[t],3));geo.setAttribute('color',new THREE.Float32BufferAttribute(col[t],3));const p=new THREE.Points(geo,luzPts[t]);p.userData.decor=1;p.renderOrder=3;g.add(p)}
+  inner.add(g)}
+function decorEvento(i,st,d,inner){if(!EVT.atual||!enfeitesOn()||d.evento)return;
+  if(EVT.atual==='natal'){
+    if(d.road){varalRua(i,d,inner);return}
+    if(!ENFEITE_CATS.has(d.cat))return;
+    const key=modelKey(i);let m=_decCache.get(key);if(m===undefined){m=medidaPredio(inner,st.id);_decCache.set(key,m)}if(!m)return;
+    inner.add(luzinhas(m,i%5,d.cat==='moradias'||d.cat==='comercio'));
+    if(st.id==='prefeitura'){const t=arvoreNatal(new THREE.Group(),.37,.34,.85,3);t.userData.decor=1;inner.add(t)}}}
+// troca de festa (verificada junto com a estação): redesenha as construções enfeitadas
+let _evtSig=null;
+// ao montar o mundo: já sabe a festa do dia, sem redesenhar nada
+function evtSync(){const b=brasilia();EVT.atual=festaDe(b);EVT.reveillon=EVT.atual==='natal'&&reveillonDe(b);_evtSig=(EVT.atual||'-')+':'+enfeitesOn();_decCache.clear()}
+function checkEventos(force){const b=brasilia(),e=festaDe(b);EVT.reveillon=e==='natal'&&reveillonDe(b);const sig=(e||'-')+':'+enfeitesOn();
+  if(!force&&sig===_evtSig)return false;const antes=EVT.atual;EVT.atual=e;_evtSig=sig;_decCache.clear();
+  if(typeof W!=='undefined'&&W&&W.b)for(let i=0;i<N*N;i++)if(W.b[i]&&!isNatureId(W.b[i].id)&&(!ITEMS[W.b[i].id].road||ITEMS[W.b[i].id].road.kind==='rua'))refreshObj(i,false);
+  if(typeof renderItems==='function'&&typeof game!=='undefined'&&game.active){if(game.tool.mode==='build'&&game.tool.item&&evtOff(ITEMS[game.tool.item]))setTool('look');renderItems()}
+  if(antes!==e&&e&&typeof game!=='undefined'&&game.active&&typeof news==='function')news(`Começou o ${EVENTOS[e].n}! ${EVENTOS[e].dica}`);
+  return true}
+
+/* ---------- fogos do Réveillon ---------- */
+const fogos=[];let fogoT=0;
+function fogoBurst(x,y,z,cor){const n=48,pos=new Float32Array(n*3),vel=[];for(let k=0;k<n;k++){pos[k*3]=x;pos[k*3+1]=y;pos[k*3+2]=z;const a=Math.random()*Math.PI*2,u=Math.random()*2-1,s=Math.sqrt(1-u*u),v=2.2+Math.random()*.8;vel.push(Math.cos(a)*s*v,u*v,Math.sin(a)*s*v)}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const mat=new THREE.PointsMaterial({size:.16,map:_dotTex,color:cor,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true});
+  const p=new THREE.Points(geo,mat);p.frustumCulled=false;scene.add(p);fogos.push({p,vel,t:0,s0:.22})}
+function updateFogos(dt){const show=EVT.reveillon&&enfeitesOn()&&typeof isNight==='function'&&isNight();
+  if(show){fogoT-=dt;if(fogoT<=0){fogoT=.2+Math.random()*.35;const tg=cam.target,R=5/Math.max(.5,cam.zoom)+1,th=Math.PI/4+cam.rot,bx=-Math.sin(th)*R*.6,bz=-Math.cos(th)*R*.6;fogoBurst(tg.x+bx+(Math.random()-.5)*R*1.6,2.2+Math.random()*1.8,tg.z+bz+(Math.random()-.5)*R*1.6,LUZ_CORES[Math.floor(Math.random()*LUZ_CORES.length)])}}
+  for(let k=fogos.length-1;k>=0;k--){const f=fogos[k];f.t+=dt;const a=f.p.geometry.attributes.position;for(let j=0;j<f.vel.length/3;j++){f.vel[j*3+1]-=dt*1.4;a.array[j*3]+=f.vel[j*3]*dt;a.array[j*3+1]+=f.vel[j*3+1]*dt;a.array[j*3+2]+=f.vel[j*3+2]*dt;f.vel[j*3]*=.985;f.vel[j*3+2]*=.985}
+    a.needsUpdate=true;f.p.material.size=Math.max(2,f.s0*pxUnid());f.p.material.opacity=Math.max(0,1-f.t/1.8);if(f.t>1.8){scene.remove(f.p);f.p.geometry.dispose();f.p.material.dispose();fogos.splice(k,1)}}}
+
+/* ---------- construções de época: Natal ---------- */
+// haste entre dois pontos (festão, fio, armação de luz)
+const _ra=new THREE.Vector3(),_rb=new THREE.Vector3(),_rq=new THREE.Quaternion(),_rup=new THREE.Vector3(0,1,0);
+function rod(g,a,b,r,mat){_ra.set(a[0],a[1],a[2]);_rb.set(b[0],b[1],b[2]);const L=_ra.distanceTo(_rb);if(L<1e-4)return null;const m=new THREE.Mesh(G.cylLo,typeof mat==='string'?M(mat):mat);
+  m.scale.set(r*2,L,r*2);m.position.copy(_ra).add(_rb).multiplyScalar(.5);_rq.setFromUnitVectors(_rup,_rb.sub(_ra).normalize());m.quaternion.copy(_rq);m.castShadow=true;m.receiveShadow=true;g.add(m);return m}
+const _cone10=new THREE.ConeGeometry(.5,1,10);
+// bola de enfeite (não acende): vermelha, dourada ou prata, com o pininho em cima
+const BOLAS=['#c8302a','#d9a830','#c9ccd2','#2f5fa8'];
+function bola(g,x,y,z,k,r=.05){S(g,r,BOLAS[k%BOLAS.length],x,y-r/2,z);C(g,r*.35,r*.25,r*.35,'#d9b45a',x,y+r*.42,z)}
+// presente com fita nos dois sentidos e laço
+function presente(g,x,z,s,c1,c2,ry){const p=new THREE.Group();p.position.set(x,0,z);p.rotation.y=ry;g.add(p);B(p,s,s*.75,s,c1,0,.03,0);
+  B(p,s+.004,s*.75+.004,s*.18,c2,0,.03,0);B(p,s*.18,s*.75+.004,s+.004,c2,0,.03,0);for(const k of[-1,1]){const l=S(p,s*.32,c2,k*s*.14,.03+s*.75,0);l.scale.set(s*.34,s*.2,s*.22)}return p}
+// rena de luz: armação fina que brilha à noite (como as das praças no Natal)
+function renaLuz(g,x,z,ry,s=1){const r=new THREE.Group();r.position.set(x,0,z);r.rotation.y=ry;r.scale.setScalar(s);g.add(r);const m=lampMat,t=.007;
+  const P=(a,b)=>rod(r,a,b,t,m);
+  P([-.09,.16,0],[.08,.17,0]);P([-.09,.12,0],[.08,.13,0]);P([-.09,.12,0],[-.09,.16,0]);P([.08,.13,0],[.08,.17,0]);
+  for(const zz of[-.025,.025]){P([-.08,.12,zz],[-.085,0,zz]);P([.07,.13,zz],[.075,0,zz])}
+  P([.08,.17,0],[.12,.27,0]);P([.12,.27,0],[.17,.25,0]);P([.12,.27,0],[.155,.22,0]);P([.155,.22,0],[.17,.25,0]);
+  for(const zz of[-.02,.02]){P([.125,.28,zz],[.11,.36,zz*2.2]);P([.115,.33,zz*1.6],[.08,.35,zz*2.6]);P([.112,.345,zz*1.9],[.14,.38,zz*2.4])}
+  P([-.09,.16,0],[-.12,.19,0]);S(r,.022,luzMats[0],.175,.245,0);return r}
+// Árvore de Natal gigante: praça 2×2 com a árvore no meio, cerquinha, presentes, renas de luz, bancos e postes
+def('arvore_natal',{cat:'lazer',name:'Árvore de Natal gigante',cost:900,happy:9,daily:45,evento:'natal',
+  desc:'Árvore enorme cheia de luzes e bolas no meio de uma praça, com presentes embaixo e renas de luz. Só no Natal. Felicidade +9 e visitas diárias enquanto a festa dura.',
+  make(r){const g=new THREE.Group();RB(g,1.9,.03,1.9,'#e1d8c6',0,0,0,.02);
+    // piso em mosaico: anel de pedra portuguesa em volta da árvore
+    C8(g,1.3,.012,1.3,'#cfc4ae',0,.03,0);C8(g,1.1,.014,1.1,'#e9e1d2',0,.03,0);for(let k=0;k<16;k++){const a=k/16*Math.PI*2;B(g,.06,.016,.02,k%2?'#9a8f7c':'#cfc4ae',Math.cos(a)*.6,.03,Math.sin(a)*.6).rotation.y=-a}
+    // canteiro com saia vermelha e cerquinha dourada com cordão vermelho
+    C8(g,.7,.06,.7,'#b8402f',0,.03,0);C8(g,.66,.012,.66,'#d9a830',0,.09,0);
+    for(let k=0;k<10;k++){const a=k/10*Math.PI*2;C(g,.022,.12,.022,'#d9a830',Math.cos(a)*.47,.03,Math.sin(a)*.47);S(g,.03,'#d9a830',Math.cos(a)*.47,.15,Math.sin(a)*.47);
+      const b=(k+1)/10*Math.PI*2;rod(g,[Math.cos(a)*.47,.13,Math.sin(a)*.47],[Math.cos(b)*.47,.13,Math.sin(b)*.47],.006,'#a82822')}
+    C(g,.12,.24,.12,'#6e4b33',0,.09,0);
+    // seis camadas de galhos, com bolas e lâmpadas na beirada
+    const cam=[[.96,.42,.22],[.82,.4,.48],[.68,.37,.74],[.54,.34,.98],[.4,.3,1.2],[.26,.26,1.4]];
+    cam.forEach(([w,h,y],k)=>{const m=part(_cone10,k%2?'#2f7a3c':'#276b34',w,h,w,0,y,0,g);m.rotation.y=k*.31;
+      const n=Math.round(w*20);for(let j=0;j<n;j++){const a=j/n*Math.PI*2+k*.6,rr=w*.46;if(j%2)bulb(g,Math.cos(a)*rr,y+.035,Math.sin(a)*rr,j+k,.034);else bola(g,Math.cos(a)*rr*.98,y+.02,Math.sin(a)*rr*.98,j/2+k,.052)}});
+    // festão dourado e fio de luz, em espiral
+    let prev=null;for(let j=0;j<=60;j++){const u=j/60,y=.3+u*1.28,rr=.45*(1-u)+.07,a=u*Math.PI*6,pt=[Math.cos(a)*rr,y,Math.sin(a)*rr];if(prev)rod(g,prev,pt,.011,'#e8c040');prev=pt}
+    for(let j=0;j<44;j++){const u=j/44,y=.36+u*1.22,rr=.43*(1-u)+.06,a=u*Math.PI*6+Math.PI;bulb(g,Math.cos(a)*rr,y,Math.sin(a)*rr,j*3+1,.026)}
+    estrela(g,0,1.76,0,.21);
+    // presentes embaixo
+    const pres=[['#d9493f','#f2c230'],['#3f7fc9','#f4f1ea'],['#5f9a5f','#d9493f'],['#f2c230','#3f7fc9'],['#7d5f9c','#f2c230'],['#f4f1ea','#c8302a']];
+    for(let k=0;k<11;k++){const a=k/11*Math.PI*2+.3,rr=.39+(k%3)*.05,[c1,c2]=pres[k%6];presente(g,Math.cos(a)*rr,Math.sin(a)*rr,.07+r()*.05,c1,c2,r()*3)}
+    renaLuz(g,-.66,.62,-.5,1.1);renaLuz(g,.62,.66,Math.PI+.5,1.1);
+    for(const[x,z,ry]of[[0,.8,Math.PI],[0,-.8,0],[.8,0,-Math.PI/2],[-.8,0,Math.PI/2]])bench(g,x,z,ry);
+    for(const[x,z]of[[.82,.82],[-.82,-.82],[.82,-.82],[-.82,.82]])lamp(g,x,z,.48);
+    for(const[x,z]of[[.56,.86],[-.56,.86],[.56,-.86],[-.56,-.86],[.86,.4],[-.86,-.4]])bush(g,r,x,z,.5,3);
+    return g}});
+// Presépio: estábulo de madeira com telhado de palha, a manjedoura com o Menino, Maria, José, os três Reis Magos, pastor, ovelhas, boi e burrinho, e a estrela-guia
+function figura(g,x,z,manto,ry,o={}){const f=new THREE.Group();f.position.set(x,0,z);f.rotation.y=ry;g.add(f);const h=o.ajoelhada?.075:.11,sk=o.pele||'#c98e62';
+  part(_cone10,manto,.075,h,.07,0,0,0,f);if(o.faixa)C(f,.058,.012,.054,o.faixa,0,h*.55,0);
+  for(const s of[-1,1]){const br=B(f,.016,.045,.016,manto,s*.03,h*.5,.014);br.rotation.x=-.7}
+  S(f,.042,sk,0,h-.006,0);
+  if(o.veu)part(G.hemi,o.veu,.054,.04,.054,0,h+.012,-.004,f),B(f,.048,.045,.012,o.veu,0,h-.03,-.022);
+  if(o.cabelo)part(G.hemi,o.cabelo,.046,.024,.046,0,h+.016,-.002,f);
+  if(o.barba)B(f,.026,.022,.012,o.barba,0,h-.018,.018);
+  if(o.coroa){C(f,.04,.02,.04,'#d9a830',0,h+.026,0);for(let k=0;k<5;k++){const a=k/5*Math.PI*2;S(f,.01,'#d9a830',Math.cos(a)*.018,h+.044,Math.sin(a)*.018)}}
+  if(o.turbante)S(f,.05,o.turbante,0,h+.016,0).scale.set(.05,.032,.05);
+  if(o.cajado)C(f,.008,.2,.008,'#6e4b33',.04,0,.02);
+  if(o.presente){B(f,.03,.026,.026,o.presente,0,h*.48,.042);B(f,.032,.006,.028,'#d9a830',0,h*.48+.026,.042)}
+  return f}
+function ovelha(g,x,z,ry){const o=new THREE.Group();o.position.set(x,0,z);o.rotation.y=ry;g.add(o);for(const[sx,sz]of[[-.025,-.015],[.025,-.015],[-.025,.015],[.025,.015]])C(o,.01,.04,.01,'#3b3530',sx,0,sz);
+  S(o,.08,'#f2eee4',0,.03,0).scale.set(.08,.06,.06);S(o,.034,'#3b3530',.045,.065,0);return o}
+def('presepio',{cat:'lazer',name:'Presépio',cost:350,happy:5,daily:15,evento:'natal',
+  desc:'O presépio de Natal num estábulo de madeira, com os Reis Magos chegando e a estrela-guia acesa à noite. Só no Natal. Felicidade +5.',
+  make(r){const g=new THREE.Group();RB(g,.94,.03,.94,'#d8cdb4',0,0,0,.01);C(g,.86,.012,.76,'#c9b98a',0,.03,-.02);
+    // chão de palha no estábulo
+    for(let k=0;k<14;k++){const p=B(g,.05+r()*.04,.008,.012,'#e3c46a',-.24+r()*.48,.04,-.3+r()*.36);p.rotation.y=r()*3}
+    // estábulo: esteios, vigas, paredes de tábua e telhado de palha com caimento
+    for(const x of[-.3,.3])for(const z of[-.32,.14]){C(g,.036,.34,.036,'#7a5434',x,.03,z)}
+    for(const z of[-.32,.14])B(g,.66,.03,.04,'#6e4b33',0,.36,z);    for(let k=0;k<6;k++)RB(g,.62,.035,.026,k%2?'#8a6240':'#7a5434',0,.04+k*.04,-.33,.004);
+    for(const s of[-1,1])for(let k=0;k<4;k++)RB(g,.026,.2-k*.03,.12,k%2?'#8a6240':'#7a5434',s*.31,.04,-.27+k*.13,.004);
+    for(const s of[-1,1]){const t=B(g,.4,.03,.6,'#d9b85a',s*.17,.42,-.09);t.rotation.z=s*-.42;for(let k=0;k<5;k++){const f=B(g,.4,.008,.012,'#c9a24a',s*.17,.44+.002,-.36+k*.13);f.rotation.z=s*-.42}}
+    B(g,.06,.045,.62,'#c9a24a',0,.47,-.09);
+    // lampião aceso pendurado
+    C(g,.004,.06,.004,'#3b3530',-.22,.3,.12);C(g,.03,.04,.03,lampMat,-.22,.26,.12);
+    // manjedoura com palha e o Menino, com auréola clarinha
+    B(g,.15,.055,.09,'#7a5434',0,.03,-.08);for(const s of[-1,1])B(g,.012,.07,.1,'#6e4b33',s*.075,.03,-.08);B(g,.13,.02,.07,'#e3c46a',0,.085,-.08);
+    S(g,.05,'#f4f1ea',0,.09,-.08).scale.set(.06,.035,.04);S(g,.028,'#e3b08a',.03,.098,-.08);ring(g,.018,.003,'#ffe9a0',.03,.13,-.08,false).material=lampMat;
+    figura(g,-.13,-.08,'#3f6fa8',Math.PI/2,{ajoelhada:1,veu:'#f4f1ea'});
+    figura(g,.14,-.12,'#8a5a3a',-Math.PI/2,{cabelo:'#4a3020',barba:'#4a3020',cajado:1,faixa:'#c9a26a'});
+    // boi e burrinho deitados no fundo
+    RB(g,.17,.075,.09,'#e9e3d6',-.16,.03,-.25,.025);S(g,.065,'#e9e3d6',-.06,.07,-.25);for(const s of[-1,1])C(g,.008,.03,.008,'#d9cfb8',-.05,.11,-.25+s*.02).rotation.x=s*.5;
+    RB(g,.13,.065,.075,'#8a8580',.16,.03,-.25,.022);S(g,.055,'#8a8580',.075,.065,-.25);for(const s of[-1,1])B(g,.012,.045,.012,'#8a8580',.068,.1,-.25+s*.016);
+    // os três Reis Magos chegando com os presentes, um pastor e as ovelhas
+    figura(g,-.3,.3,'#7d2f5a',.35,{coroa:1,barba:'#e9e6de',presente:'#d9a830',faixa:'#d9a830'});
+    figura(g,-.16,.36,'#2f5f9e',.15,{coroa:1,barba:'#2b2018',presente:'#9a6b45',pele:'#9a6343'});
+    figura(g,-.02,.38,'#3f7a3c',-.05,{turbante:'#f2c230',presente:'#c9ccd2',pele:'#6b4430',faixa:'#c8302a'});
+    figura(g,.3,.26,'#9a7b5a',-.6,{cabelo:'#2b2018',cajado:1});ovelha(g,.22,.38,-.8);ovelha(g,.36,.4,-1.4);ovelha(g,.12,.3,-.3);
+    // estrela-guia no alto
+    C(g,.012,.3,.012,'#7a5434',0,.47,.14);estrela(g,0,.8,.14,.11);
+    bush(g,r,-.4,.42,.55,2);bush(g,r,.42,-.4,.5,2);
+    return g}});
+// Feira de Natal: três barracas com toldo listrado, guirlanda e varal de luz, o trono do Papai Noel para foto e arvorezinhas, numa calçada 2×1
+function guirlanda(g,x,y,z,s=1){const k=ring(g,.03*s,.011*s,'#2f7a3c',x,y,z,false);for(let j=0;j<4;j++){const a=j/4*Math.PI*2+.4;S(g,.012*s,'#c8302a',x+Math.cos(a)*.03*s,y+Math.sin(a)*.03*s-.006*s,z+.008)}const l=S(g,.022*s,'#c8302a',x,y-.03*s,z+.01);l.scale.set(.026*s,.014*s,.01*s);return k}
+function barraca(g,x,z,c1,c2,mercadoria,r,seed){RB(g,.4,.13,.22,'#9a6b45',x,.03,z,.008);for(let k=0;k<4;k++)B(g,.395,.006,.004,'#7a5434',x,.05+k*.03,z+.112);B(g,.36,.02,.18,'#c9a26a',x,.16,z);
+  for(let k=0;k<6;k++){const cc=mercadoria[k%mercadoria.length],xx=x-.15+k*.06;if(k%3===0){C(g,.045,.05,.045,cc,xx,.18,z+.02);part(G.hemi,'#c9884a',.045,.02,.045,xx,.23,z+.02,g)}else RB(g,.045,.04,.045,cc,xx,.18,z,.01)}
+  for(const s of[-1,1])C(g,.02,.32,.02,'#7a5434',x+s*.18,.03,z-.09),C(g,.02,.37,.02,'#7a5434',x+s*.18,.03,z+.09);
+  // fundo da barraca com prateleira
+  B(g,.36,.16,.012,'#b88a5a',x,.18,z-.09);B(g,.34,.012,.05,'#7a5434',x,.27,z-.07);for(let k=0;k<5;k++)S(g,.028,BOLAS[k%4],x-.12+k*.06,.282,z-.07);
+  for(let k=0;k<6;k++){const t=B(g,.068,.012,.27,k%2?c1:c2,x-.17+k*.068,.385,z+.01);t.rotation.x=-.32;S(g,.028,k%2?c1:c2,x-.17+k*.068,.322,z+.15).scale.set(.034,.024,.012)}
+  guirlanda(g,x,.29,z+.115,.9);
+  for(let k=0;k<9;k++)bulb(g,x-.19+k*.0475,.345-.014*Math.sin(Math.PI*k/8),z+.16,k+seed,.017)}
+function tronoNoel(g,x,z,r){B(g,.2,.03,.16,'#a82822',x,.03,z);RB(g,.12,.06,.1,'#c8302a',x,.06,z-.01,.015);RB(g,.12,.16,.03,'#c8302a',x,.06,z-.055,.012);
+  for(const s of[-1,1]){RB(g,.02,.08,.1,'#d9a830',s*.065+x,.06,z-.01,.006);S(g,.026,'#d9a830',x+s*.065,.15,z+.035)}S(g,.03,'#d9a830',x,.23,z-.055);
+  for(let k=0;k<4;k++)presente(g,x-.1+k*.065+(k>1?.07:0),z+.06,.045,['#3f7fc9','#5f9a5f','#f2c230','#7d5f9c'][k],'#f4f1ea',k)}
+def('feira_natal',{cat:'lazer',name:'Feira de Natal',cost:700,shop:180,energy:2,needsRoad:true,happy:4,evento:'natal',
+  desc:'Barracas de enfeites, panetone e brinquedos com varal de luz e o trono do Papai Noel para foto. Só no Natal. Vende como comércio enquanto a festa dura.',
+  make(r){const g=new THREE.Group();RB(g,1.9,.03,.94,'#ddd4c2',0,0,0,.01);
+    for(let k=0;k<9;k++)B(g,.2,.012,.94,k%2?'#d6cdba':'#e3dccd',-.8+k*.2,.03,0);
+    barraca(g,-.55,-.16,'#d9493f','#f4f1ea',['#d9493f','#f2c230','#3f7fc9'],r,0);barraca(g,.02,-.2,'#2f7a3c','#f4f1ea',['#c9884a','#f4e3c0','#a8543f'],r,2);barraca(g,.58,-.16,'#d9493f','#f2c230',['#5f9a5f','#e98aa8','#f2c230'],r,4);
+    // varal de luz cruzando a feira, de poste a poste
+    for(const x of[-.88,.88])C(g,.022,.5,.022,'#3a4448',x,.03,.24);
+    for(let k=0;k<=30;k++){const u=k/30;bulb(g,-.88+1.76*u,.5-.1*Math.sin(Math.PI*u),.24,k,.02)}
+    tronoNoel(g,.0,.3,r);arvoreNatal(g,-.7,.3,.75,1);arvoreNatal(g,.72,.32,.68,4);
+    bench(g,-.36,.38,Math.PI);bench(g,.38,.38,Math.PI);
+    return g}});
+LOTS.arvore_natal={size:[2,2],fill:'calcada'};
+LOTS.feira_natal={size:[2,1],fill:'calcada'};
+
 /* ---- js/04-mundo.js ---- */
 'use strict';
 /* ================= Estado do mundo ================= */
@@ -2953,6 +3188,8 @@ function makeObj(i){
   if(isNatureId(st.id))inner.rotation.y=(st.v||0)*Math.PI*2*7+(st.rot||0);
   else if(!d.road&&!d.crop)inner.rotation.y=st.rot||0;
   outer.add(inner);
+  // DEC-031: enfeite da festa do ano (luzinhas no Natal)
+  if(typeof decorEvento==='function')decorEvento(i,st,d,inner);
   if(d.needsRoad){const sp=new THREE.Sprite(warnMat);sp.scale.set(.42,.42,1);sp.position.y=(d.id==='predio'?(isMulti(d.id,st)?2.2:1.7):isMulti(d.id,st)?1.9:1.05);sp.renderOrder=5;sp.userData.y0=sp.position.y;sp.visible=!hasRoadAccess(i);outer.add(sp);warnSprites.set(i,sp)}
   registerDyn(outer,i);
   return outer;
@@ -2998,7 +3235,7 @@ function removeAt(i,animate){i=anchorOf(i);if(i<0)return false;const st=W.b[i];c
   const wasRail=ITEMS[st.id].rail||ITEMS[st.id].station;W.b[i]=null;unmarkParts(i);dropObj(i,animate);tiles.forEach(markPaint);railDirty();if(wasRoad)refreshRoadNeighbors(i);if(wasRail)refreshRailAround(tiles);if(!wasRoad)refreshPathsAround(tiles);if(wasRoad||wasRail)refreshBridgesNear(i);return true}
 function clearWorld(){if(typeof clearVidaNova==='function')clearVidaNova();if(typeof clearTransporte==='function')clearTransporte();if(typeof clearPessoas==='function')clearPessoas();natClear();for(let i=0;i<N*N;i++){if(objs[i]){scene.remove(objs[i]);objs[i]=null}}spinners.clear();spinnersY.clear();beams.clear();bobbers.clear();animals.clear();clockHands.clear();chimneys.clear();warnSprites.clear();cars.forEach(c=>scene.remove(c.m));cars.length=0;if(typeof slotCar!=='undefined'){slotCar.clear();lotBusy.clear()}boats.forEach(b=>scene.remove(b.m));boats.length=0}
 function buildWorld(){
-  clearWorld();gnoise=noise2((W.seed%311)+3);refreshSeason();MCTX.ipe=SEASON.ipe;MCTX.estilo=estiloOk(W.estilo);seasonGrass();
+  clearWorld();gnoise=noise2((W.seed%311)+3);refreshSeason();if(typeof evtSync==='function')evtSync();MCTX.ipe=SEASON.ipe;MCTX.estilo=estiloOk(W.estilo);seasonGrass();
   rebuildTerrainRegion(0,0,N-1,N-1);buildSkirt();rebuildParts();railDirty();bridgeDirty();
   for(let i=0;i<N*N;i++)if(W.b[i]){const o=makeObj(i);objs[i]=o;scene.add(o)}
   paintDirty=null;paintRegion(0,0,N-1,N-1);rebuildTufts();flushNature();
@@ -3916,7 +4153,7 @@ const ROLES={
   comum:{nome:'Morador',v:.2},idoso:{nome:'Idoso',v:.12},crianca:{nome:'Estudante',v:.22},universitario:{nome:'Universitário',v:.21},
   turista:{nome:'Turista',v:.16},corredor:{nome:'Corredor',v:.42},policial:{nome:'Policial',v:.18},bombeiro:{nome:'Bombeiro',v:.2},
   medico:{nome:'Médica',v:.2},enfermeiro:{nome:'Enfermeiro',v:.2},carteiro:{nome:'Carteiro',v:.21},operario:{nome:'Operário',v:.19},
-  fazendeiro:{nome:'Fazendeiro',v:.17},gari:{nome:'Gari',v:.1},motorista:{nome:'Motorista',v:.2}};
+  fazendeiro:{nome:'Fazendeiro',v:.17},gari:{nome:'Gari',v:.1},motorista:{nome:'Motorista',v:.2},noel:{nome:'Papai Noel',v:.13}};
 function limb(g,x,y,len,w,d,col,kind){const p=new THREE.Group();p.position.set(x,y,0);p.userData.dyn=1;p.userData.limb=kind;
   // v0.17.2: o passo dos visitantes dentro dos terrenos usa a mesma marca das pernas dos bichos (braço e perna opostos)
   p.userData.leg={pernaE:1,pernaD:-1,bracoE:-.7,bracoD:.7}[kind];B(p,w,len,d,col,0,-len,0);g.add(p);return p}
@@ -3938,6 +4175,8 @@ function personModel(role,r){const g=new THREE.Group();g.userData.pessoa=1;const
     case'operario':shirt='#6b7a8a';pants='#3b4a5a';shoes='#5a3a22';hat='obra';extras.push('colete');skirt=false;break;
     case'fazendeiro':shirt='#b8402f';pants='#2f4a73';shoes='#5a3a22';hat='palha';extras.push('xadrez');skirt=false;break;
     case'gari':shirt='#ef7a2a';pants='#ef7a2a';shoes='#141414';hat='bone';extras.push('faixas','vassoura');skirt=false;break;
+    // DEC-031: Papai Noel de bermuda e chinelo, por causa do calor do Natal brasileiro
+    case'noel':shirt='#c8302a';pants='#c8302a';shoes='#f4f1ea';shorts=true;skirt=false;hair='#f4f1ea';hairStyle='curto';hat='noel';extras.push('barba','barriga','saco');break;
     case'motorista':shirt='#f4f4f0';pants='#2b2f36';shoes='#141414';hat='motorista';extras.push('gravata');skirt=false;break;
   }
   // DEC-030: moradores, idosos e universitários se vestem no jeito da região da cidade (estilo); uniformes não mudam
@@ -3969,6 +4208,7 @@ function personModel(role,r){const g=new THREE.Group();g.userData.pessoa=1;const
   if(hat==='feltro'){C(g,.086,.006,.086,'#3b3530',0,.168,0);C(g,.052,.028,.052,'#3b3530',0,.17,0);B(g,.053,.006,.053,'#1f1a17',0,.172,0)}
   if(hat==='balde'){C(g,.075,.006,.075,'#f4f1ea',0,.168,0);C(g,.052,.022,.052,'#f4f1ea',0,.17,0)}
   if(hat==='bone'){C(g,.054,.018,.054,role==='gari'?'#ef7a2a':'#2f5f9e',0,.168,0);B(g,.04,.005,.03,role==='gari'?'#ef7a2a':'#2f5f9e',0,.168,.03)}
+  if(hat==='noel'){C(g,.058,.016,.058,'#f4f1ea',0,.166,0);const k=K(g,.05,.07,.05,'#c8302a',0,.178,-.006);k.rotation.x=-.35;S(g,.022,'#f4f1ea',0,.228,-.03)}
   if(hat==='motorista'){C(g,.056,.02,.056,'#2b2f36',0,.17,0);B(g,.04,.005,.02,'#141414',0,.168,.028)}
   // acessórios
   if(extras.includes('mochila'))RB(g,.044,.05,.022,pick(r,['#d9493f','#3f7fc9','#f2b632','#5f9a5f','#e98aa8']),0,.08,-.026,.008);
@@ -3976,6 +4216,9 @@ function personModel(role,r){const g=new THREE.Group();g.userData.pessoa=1;const
   if(extras.includes('camera')){B(g,.024,.016,.012,'#2b2b2b',0,.098,.02);C(g,.01,.008,.01,'#5a6a7a',0,.1,.026).rotation.x=Math.PI/2}
   if(extras.includes('flores'))for(let k=0;k<5;k++)S(g,.01,'#f4f1ea',(r()-.5)*.04,.08+r()*.045,.016);
   if(extras.includes('faixa'))C(g,.054,.008,.054,'#f4f1ea',0,.168,0);
+  if(extras.includes('barriga')){RB(g,.062,.05,.042,shirt,0,.075,.006,.018);B(g,.064,.01,.046,'#1a1a1a',0,.08,.006);B(g,.016,.012,.004,'#f2c230',0,.08,.03)}
+  if(extras.includes('barba')){RB(g,.046,.04,.018,'#f4f1ea',0,.1,.022,.008);B(g,.03,.008,.008,'#f4f1ea',0,.14,.027)}
+  if(extras.includes('saco')){S(g,.06,'#8a5a3a',0,.1,-.04);C(g,.012,.02,.012,'#6e4b33',0,.155,-.04)}
   if(extras.includes('cinto')){B(g,.056,.008,.034,'#141414',0,.074,0)}
   if(extras.includes('distintivo'))B(g,.01,.012,.004,'#f2c230',.012,.11,.017);
   if(extras.includes('faixas')){B(g,.056,.007,.034,'#e9f26a',0,.085,0);B(g,.056,.007,.034,'#e9f26a',0,.105,0)}
@@ -4233,7 +4476,8 @@ function managePeds(){if(!W)return;const spots=pedSpawnSpots();if(!spots.length)
   let gari=peds.some(p=>p.role==='gari');
   for(let n=0;n<3&&peds.length<want;n++){const sp=spots[Math.floor(Math.random()*spots.length)];
     // não nasce em cima de outro
-    const[cx,cz]=tileC(sp[0]);if(peds.some(p=>Math.hypot(p.x-cx,p.z-cz)<.75))continue;spawnPed(sp,!gari&&spots.length>12?'gari':null);gari=true}}
+    const[cx,cz]=tileC(sp[0]);if(peds.some(p=>Math.hypot(p.x-cx,p.z-cz)<.75))continue;const noel=typeof EVT!=='undefined'&&EVT.atual==='natal'&&enfeitesOn()&&!peds.some(p=>p.role==='noel')&&Math.random()<.35;
+    spawnPed(sp,!gari&&spots.length>12?'gari':noel?'noel':null);gari=true}}
 function updatePessoas(dt){updateSignals(dt);if(!dt)return;pedT-=dt;if(pedT<0){pedT=2;managePeds()}updatePeds(dt)}
 function clearPessoas(){while(peds.length)removePed(peds.length-1);seatsTaken.clear();signalLamps.clear();pedT=0}
 // carro: algum pedestre na faixa do braço (lote vizinho) deste cruzamento?
@@ -4382,6 +4626,8 @@ function genAt(d){const wk=weatherNow();if(d.wind)return d.gen*({sol:.85,nublado
 function computeStats(){
   let pop=0,cap=0,gen=0,use=0,leisure=0,svc=0,mon=0,shops=0,homes=0,fields=0,edu=0,inds=0,clean=false;const night=isNight();const polluters=[];
   for(let i=0;i<N*N;i++){const s=W.b[i];if(!s)continue;const d=ITEMS[s.id];
+    // DEC-031: construção de época fora da festa fica apagada (sem felicidade, energia nem renda)
+    if(evtOff(d))continue;
     if(d.home){homes++;cap+=d.home;pop+=s.occ||0;use+=d.energy*((s.occ||0)/d.home)}
     else if(d.id==='poste'){if(night)use+=d.energy}
     else if(d.energy)use+=d.energy;
@@ -4424,7 +4670,7 @@ function hourTick(){
   const night=isNight(),wk=weatherNow();let earned=0;computeCropBonus();const shopBoost=cityBoost('shop');
   // DEC-013: as famílias chegam aos poucos para a cidade toda (antes cada casa enchia sozinha, quase na hora)
   const MO=modeOf(),RK=MO.renda;let arrB=(W._arrAcc||0)+arrivalsPerCycle(st);
-  for(let i=0;i<N*N;i++){const s=W.b[i];if(!s)continue;const d=ITEMS[s.id];
+  for(let i=0;i<N*N;i++){const s=W.b[i];if(!s)continue;const d=ITEMS[s.id];if(evtOff(d))continue;
     if(d.crop){let rate=(night?.6:1)*SEASON.growth;if(wk==='chuva')rate*=1.6;else if(wk==='nublado')rate*=1.1;rate*=cropGrow[i];
       s.age=(s.age||0)+rate;const ns=stageOf(s);
       if(s.age>=d.crop.grow+4){let v=Math.round(d.crop.value*cropVal[i]*ECON.crop*RK);W.money+=v;earned+=v;W.stats.harvests++;s.age=0;harvestMachine(i);if(Math.random()<.35||W.stats.harvests<3)popMoney(i,v);refreshObj(i,false);if(objs[i]){objs[i].scale.setScalar(.6);anims.push({o:objs[i],t:0,dur:.35})}SFX.harvest();
@@ -4441,7 +4687,7 @@ function hourTick(){
   // sobra para o próximo ciclo só um pouco (quem não achou casa neste ciclo não se acumula sem fim)
   W._arrAcc=Math.min(arrB,3);
   const tax=st.pop*ECON.tax*RK;W.money+=tax;earned+=tax;
-  if(cyc>0&&cyc%24===0){let daily=0,upkeep=0;for(let i=0;i<N*N;i++){const s=W.b[i];if(!s)continue;const d=ITEMS[s.id];if(d.daily){const v=Math.round(d.daily*ECON.daily*RK);W.money+=v;daily+=v;popMoney(i,v)}
+  if(cyc>0&&cyc%24===0){let daily=0,upkeep=0;for(let i=0;i<N*N;i++){const s=W.b[i];if(!s)continue;const d=ITEMS[s.id];if(d.daily&&!evtOff(d)){const v=Math.round(d.daily*ECON.daily*RK);W.money+=v;daily+=v;popMoney(i,v)}
       // DEC-013: manutenção cresce com a cidade e as vias passam a custar por dia
       if(d.upkeep){const u=d.upkeep*ECON.up*MO.manut*Math.min(1+ECON.upPop*st.pop,ECON.upMax);W.money-=u;upkeep+=u}const vu=ECON.via[s.id];if(vu){W.money-=vu*MO.manut;upkeep+=vu*MO.manut}}
     upkeep=Math.round(upkeep);
@@ -4496,7 +4742,7 @@ function priceOf(d){return Math.round(d.cost*(W?modeOf().custo:1))}
 // títulos: moradores e (nos altos) felicidade. presente = dinheiro da prefeitura ao subir
 const TITLES=[
   {id:'vila',nome:'Vila',pop:0,feliz:0,presente:0,
-    lib:'trilha estrada rua caminho pinheiro arvore ipe coqueiro arbusto flores lago aterro trigo milho horta girassol soja chale casa feira padaria cafe moinho turbina solar poste caixa banco praca parque playground celeiro galinheiro'},
+    lib:'trilha estrada rua caminho pinheiro arvore ipe coqueiro arbusto flores lago aterro trigo milho horta girassol soja chale casa feira padaria cafe moinho turbina solar poste caixa banco praca parque playground celeiro galinheiro arvore_natal presepio feira_natal'},
   {id:'povoado',nome:'Povoado',pop:200,feliz:0,presente:1000,
     lib:'sobrado mercado pizzaria sorveteria farmacia posto creche escola curral ovelhas estufa silos fonte coreto quadra estatua armazem serraria pomar cana vinhedo cafe_pe tulipas lavanda'},
   {id:'cidade_pequena',nome:'Cidade pequena',pop:600,feliz:0,presente:3000,
@@ -4686,6 +4932,7 @@ function newToolSeed(){game.tool.seed=Math.random()*1e5}
 function toolV(i){const s=Math.sin(i*12.9898+(game.tool.seed||0)*78.233)*43758.5453;return s-Math.floor(s)}
 function setTool(mode,item){
   // DEC-013: botão de aviso ou atalho nunca escolhe item com cadeado
+  if(mode==='build'&&item&&evtOff(ITEMS[item])){toast(`${ITEMS[item].name}: só durante o ${EVENTOS[ITEMS[item].evento].n}.`);mode='look';item=null}
   if(mode==='build'&&item&&!unlocked(item)){toast(lockText(item)+'.');mode='look';item=null}
   if(game.carry)cancelCarry();
   // trocar de ferramenta no meio de um arrasto (Esc, M, X) encerra o arrasto: soltar o mouse depois não faz nada
@@ -4708,7 +4955,8 @@ function tabsEdge(){const t=$('#tabs');if(!t)return;t.classList.toggle('more-l',
 $('#tabs').addEventListener('scroll',tabsEdge,{passive:true});addEventListener('resize',tabsEdge);
 for(const sel of['#tabs','#items'])$(sel).addEventListener('wheel',e=>{const el=e.currentTarget;if(el.scrollWidth<=el.clientWidth||Math.abs(e.deltaX)>Math.abs(e.deltaY))return;el.scrollLeft+=e.deltaY;e.preventDefault()},{passive:false});
 // pedido do jogador: dentro de cada aba, do mais barato ao mais caro (empate fica na ordem do catálogo)
-function renderItems(){const list=ORDER.filter(id=>ITEMS[id].cat===game.cat).sort((a,b)=>ITEMS[a].cost-ITEMS[b].cost);
+// DEC-031: construção de época só aparece na bandeja durante a sua festa
+function renderItems(){const list=ORDER.filter(id=>ITEMS[id].cat===game.cat&&!evtOff(ITEMS[id])).sort((a,b)=>ITEMS[a].cost-ITEMS[b].cost);
   $('#items').innerHTML=list.map(id=>{const d=ITEMS[id];const per=d.mode==='single'?'':'/lote';const lk=!unlocked(id);
     // DEC-013: item de título acima aparece com cadeado e o requisito (não some: ver o que vem pela frente dá vontade de crescer)
     return`<button class="item${game.tool.item===id&&game.tool.mode==='build'?' on':''}${W&&W.money<priceOf(d)?' poor':''}${lk?' locked':''}" data-id="${id}" title="${lk?lockText(id):d.desc}">${THUMBS[id]?`<img alt="" src="${THUMBS[thumbKey(id)]}">`:'<span class="noimg" aria-hidden="true"></span>'}<b>${d.name}</b><small>${lk?icon('lock')+TITLES[tierOf(id)].nome:brl(priceOf(d))+per}</small></button>`}).join('')}
@@ -5097,13 +5345,14 @@ function renderPanel(){const b=$('#panelBody'),title=$('#panelTitle');
       <p class="land-det">${upgradeGain(u.from,u.to).det}</p><p class="land-price"><span class="coin"></span><b>${brl(u.cost)}</b></p>
       ${u.why?`<p class="land-why${unlocked(u.to)?'':' lock'}">${unlocked(u.to)?'':icon('lock')}${esc(u.why)}</p>`:''}<button class="btn dark" id="obraUp"${u.ok?'':' disabled'}>Melhorar</button></div>`:'');
     const bt=$('#obraUp');if(bt)bt.onclick=()=>{if(doUpgrade(i))renderPanel()};return}
-  if(panelKind==='settings'){title.textContent='Ajustes';b.innerHTML=sw('swMusic',prefs.music,'Música')+sw('swSfx',prefs.sfx,'Efeitos e ambiente','Chuva, neblina e nuvens na tela, passarinhos, grilos e sons de obra. Desligado, o céu fica limpo (o clima de verdade continua no topo e na economia).')+`<div class="setting"><div>Volume</div><input type="range" id="vol" min="0" max="1" step=".05" value="${prefs.vol}" aria-label="Volume"></div>`+sw('swDia',prefs.luz==='dia','Sempre de dia','Melhor para ver o mapa. Desligado, a luz segue o sol de Brasília. A economia usa sempre o sol real.')+sw('swShadows',prefs.shadows,'Sombras','Desligue se o jogo ficar lento')+sw('swGrid',prefs.grid,'Grade de construção','Aparece ao construir (tecla G)')+`<div class="setting"><div>Atalhos<small>Botão direito e arrastar gira e inclina · Q/E giram · Espaço pausa a economia · 1, 2, 3 ritmo · X remove · Esc volta a olhar</small></div></div>`;
+  if(panelKind==='settings'){title.textContent='Ajustes';b.innerHTML=sw('swMusic',prefs.music,'Música')+sw('swSfx',prefs.sfx,'Efeitos e ambiente','Chuva, neblina e nuvens na tela, passarinhos, grilos e sons de obra. Desligado, o céu fica limpo (o clima de verdade continua no topo e na economia).')+`<div class="setting"><div>Volume</div><input type="range" id="vol" min="0" max="1" step=".05" value="${prefs.vol}" aria-label="Volume"></div>`+sw('swDia',prefs.luz==='dia','Sempre de dia','Melhor para ver o mapa. Desligado, a luz segue o sol de Brasília. A economia usa sempre o sol real.')+sw('swShadows',prefs.shadows,'Sombras','Desligue se o jogo ficar lento')+sw('swGrid',prefs.grid,'Grade de construção','Aparece ao construir (tecla G)')+sw('swEnfeites',enfeitesOn(),'Enfeites das festas','Luzinhas, varais de luz, Papai Noel e fogos no Natal, Carnaval e Festa Junina. As construções de época continuam na bandeja.')+`<div class="setting"><div>Atalhos<small>Botão direito e arrastar gira e inclina · Q/E giram · Espaço pausa a economia · 1, 2, 3 ritmo · X remove · Esc volta a olhar</small></div></div>`;
     $('#swMusic').onclick=()=>{prefs.music=!prefs.music;if(prefs.music)prefs.mute=false;savePrefs();applyAudioPrefs();renderPanel();syncSoundBtn()};
     $('#swSfx').onclick=()=>{prefs.sfx=!prefs.sfx;savePrefs();applyAudioPrefs();renderPanel();syncSoundBtn()};
     $('#vol').oninput=e=>{prefs.vol=+e.target.value;savePrefs();applyAudioPrefs()};
     $('#swDia').onclick=()=>{prefs.luz=prefs.luz==='dia'?'real':'dia';savePrefs();renderPanel()};
     $('#swShadows').onclick=()=>{prefs.shadows=!prefs.shadows;savePrefs();applyShadows();renderPanel()};
-    $('#swGrid').onclick=()=>{prefs.grid=!prefs.grid;savePrefs();gridLines.visible=prefs.grid&&game.tool.mode!=='look';renderPanel()};}
+    $('#swGrid').onclick=()=>{prefs.grid=!prefs.grid;savePrefs();gridLines.visible=prefs.grid&&game.tool.mode!=='look';renderPanel()};
+    $('#swEnfeites').onclick=()=>{prefs.enfeites=!enfeitesOn();savePrefs();checkEventos(true);renderPanel()};}
   else if(panelKind==='stats'){title.textContent='Estatísticas';const st=computeStats();const hist=W.stats.hist;const inc=hist.length>24?hist[hist.length-1][0]-hist[hist.length-25][0]:null;
     b.innerHTML=titleBox(st)+arrivalBox(st)+`<div class="stat-grid"><div class="stat-box"><span>Moradores</span><b>${fmt(st.pop)}</b><small style="color:var(--muted)"> de ${fmt(st.cap)} vagas</small></div><div class="stat-box"><span>Felicidade</span><b>${st.happy}%</b></div><div class="stat-box"><span>Energia</span><b>${Math.round(st.use)} / ${Math.round(st.gen)}</b></div><div class="stat-box"><span>Colheitas</span><b>${fmt(W.stats.harvests)}</b></div><div class="stat-box"><span>Último dia</span><b>${inc==null?'—':(inc>=0?'+':'')+fmt(inc)}</b></div><div class="stat-box"><span>Campos</span><b>${fmt(st.fields)}</b></div><div class="stat-box"><span>Dias da cidade</span><b>${fmt(Math.floor(W.hours/24))}</b></div><div class="stat-box"><span>Estação</span><b style="font-size:18px">${SEASONS[SEASON.key].n}</b></div></div>
     <div class="spark"><span>Moedas</span><canvas id="spM"></canvas></div><div class="spark"><span>Moradores</span><canvas id="spP"></canvas></div>`;
@@ -5145,7 +5394,7 @@ function titlesHtml(st){const k=W.title|0,M=modeOf();
     const req=j===0?'<p class="tl-req">Começo de toda cidade</p>':est==='next'
       ?`<p class="tl-req">${fmt(st.pop)} de ${fmt(n.pop)} moradores${bar(st.pop,n.pop)}</p>${n.feliz?`<p class="tl-req">Felicidade ${st.happy}% de ${n.feliz}%${bar(st.happy,n.feliz)}</p>`:''}`
       :`<p class="tl-req">${icon('person')}${fmt(n.pop)} moradores${n.feliz?` · ${icon('smile')}${n.feliz}% de felicidade`:''}</p>`;
-    const ids=t.lib.split(' ').filter(id=>ITEMS[id]&&ITEMS[id].cat!=='oculto').sort((a,b)=>ITEMS[a].cost-ITEMS[b].cost);
+    const ids=t.lib.split(' ').filter(id=>ITEMS[id]&&ITEMS[id].cat!=='oculto'&&!evtOff(ITEMS[id])).sort((a,b)=>ITEMS[a].cost-ITEMS[b].cost);
     const pres=t.presente?`<p class="tl-gift"><span class="coin"></span>Presente da prefeitura: <b>${brl(Math.round(t.presente*M.renda))}</b></p>`:'';
     const grade=`<div class="tl-lib">${ids.map(id=>`<span title="${esc(ITEMS[id].name)}">${THUMBS[id]?`<img alt="${esc(ITEMS[id].name)}" src="${THUMBS[thumbKey(id)]}">`:''}<small>${esc(ITEMS[id].name)}</small></span>`).join('')}</div>`;
     // o que já está liberado fica recolhido; o que vem pela frente aparece aberto
@@ -5587,7 +5836,7 @@ function frame(now){
     cam.rot=lerp(cam.rot,cam.rotTarget,Math.min(1,dt*7));cam.el=lerp(cam.el,cam.elTarget,Math.min(1,dt*7));cam.zoom=lerp(cam.zoom,cam.zoomTarget,Math.min(1,dt*8));updateCamera();
     U.time.value=clock;flushTerra();flushPaint();
     const live=game.active&&game.speed===0?0:dt;
-    updateLighting(dt,clock);updateCars(live);updateBoats(live,clock);updateRain(dt);updateAnimals(live,clock);updateBirds(dt,clock);updateVidaNova(dt,clock);updateTransporte(live);updatePessoas(live);updateChimneys(dt);
+    updateLighting(dt,clock);updateCars(live);updateBoats(live,clock);updateRain(dt);updateAnimals(live,clock);updateBirds(dt,clock);updateVidaNova(dt,clock);updateTransporte(live);updatePessoas(live);updateChimneys(dt);if(typeof updateEventos==='function')updateEventos(dt,clock);
     spinners.forEach(o=>o.rotation.z+=dt*o.userData.spin*(weatherNow()==='chuva'?1.6:1));spinnersY.forEach(o=>o.rotation.y+=dt*o.userData.spinY);updateBeams(dt);bobbers.forEach(o=>o.scale.setScalar(.1*(1+Math.sin(clock*6)*.25)));
     warnSprites.forEach(sp=>{if(sp.visible)sp.position.y=sp.userData.y0+Math.sin(clock*3)*.05});
     if(prefs.grid&&game.active&&game.tool.mode!=='look')gridLines.position.y=0;
@@ -5596,7 +5845,7 @@ function frame(now){
   ambT+=dt;if(ambT>.5){ambT=0;ambienceTick()}
   hudT+=dt;if(hudT>.25&&game.active){hudT=0;updateHud();updateCompass()}
   slowT+=dt;if(slowT>1){slowT=0;updateClocks();checkWeatherChange();if(game.active&&++issT>=2){issT=0;checkIssues()}}
-  seasonT+=dt;if(seasonT>20){seasonT=0;checkSeasonVisuals()}
+  seasonT+=dt;if(seasonT>20){seasonT=0;checkSeasonVisuals();if(typeof checkEventos==='function'&&W)checkEventos()}
   if(game.active)syncHandle();
   renderer.render(scene,camera);requestAnimationFrame(frame);
 }
@@ -5637,7 +5886,7 @@ if(navigator.webdriver||/[?&]teste\b/.test(location.search)){
     placeAt,removeAt,cloudMat,updateHud,toast,SUN,SEASON,weatherNow,realSunEl,sunPos,brasilia,flushPaint,flushTerra,modelCache,objs,cars,boats,animals,orbitBy,tileSd,terrainHeightAt,
     camera,pickUp,dropAt,cancelCarry,rotateTool,previewAt,setTool,ghostRoot,arrow,toolV,keyFor,variantOf,canMoveTo,get reach(){return reach},
     renderer,tufts,PREV_MAX,TUFT_MAX,modelKey,SEASONS,seasonOf,brasiliaAt,clockText,dateText,isNight,genAt,prefs,updateLighting,resetNorth,EL_DEF,
-    setClock(ms){clockOverride=ms;_bCache=null;_rsT=-1e12;refreshSeason();checkSeasonVisuals();updateLighting(.016,0)},setWeather(k){weatherForce=k},popMoney,audioInit,THUMBS,ORDER,canPlace,planFor,applyBuild,hasRoadAccess,pops,prevMesh,musicTick,scheduleStep,buildMusicChain,news,cityIssues,checkIssues,doIssueAction,setTrayMin,get issuesNow(){return issuesNow},setIssueToasts(v){issueToastsOn=v},richToast,wpos,sun,machines,ducks,capys,butterflies,planes,harvestMachine,spawnDucks,spawnCapys,spawnButterflies,computeCropBonus,cropGrow,cropVal,industryRate,cityBoost,spinnersY,beams,CATS,computeStats,near,anchorOf,fpTiles,fitAt,isMulti,sizeOf,fixFootprints,buildLot,QROT,trains,barriers,closedX,airPlanes,ships,isRail,railInfo,railMask,railLink,stationTrack,lotTile,stationLinked,stationOnLoop,railFlowReverse,pathPoint,updateTransporte,manageTransport,forceAirplane,forceShip,portDock,cityIssues,fpSide,CATS,updateCars,cityBoost,trainReverse,placeTrain,peds,personModel,ROLES,waterTopMat,spawnCar,spawnParked,newTrip,lotSlots,lotTargets,carRoute,slotCar,lotBusy,frontRoad,carModel,updateAnimals,spawnPed,pedSpawnSpots,managePeds,updatePeds,updatePessoas,updateSignals,carLight,walkOk,isJunction,isSignal,signalLamps,pedCrossing,pedRoute,get sigT(){return sigT},sigSet,redLeft,onWalk,checkIssues,tryVisit,lotSeats,seatsTaken,bridgeProfile,bridgeRuns,bridgeH,bridgePart,deckLift,lowBridge,shipPath,shipChannel,shipLine,waterShore,wxSlot,WX_SLOT,spawnMudanca,cityEntrance,arrivalInfo,upgradeOf,doUpgrade,UPGRADE,nearPop,fpCenter,brazukaLogoMat,metroNear,arrivalsPerCycle,openObra,spawnEsp,manageEmergencia,animalGap,ANIMAL_SHAPE,sitPose,bench,mulberry,tube,addGente,chicken,personModel,cow,horse,sheep,ZOO_MAKE,roadModel,planeModel,shipModel,winMat,lampMat,tailMat,ESP,hasSlots,upgradeGain,brl,genAt,face,set sigT(v){sigT=v},refreshObj,forcePlane,updateVidaNova,cityList,saveCitySlot,deleteCity,loadCity,migrateCities,cityKey,newWorld,genWorld,WORLDS,WORLD_ORDER,weatherSeen,get booted(){return RV.booted},get fatal(){return RV.fatal},
+    setClock(ms){clockOverride=ms;_bCache=null;_rsT=-1e12;refreshSeason();checkSeasonVisuals();if(typeof checkEventos==='function'&&W)checkEventos();updateLighting(.016,0)},setWeather(k){weatherForce=k},popMoney,audioInit,THUMBS,ORDER,canPlace,planFor,applyBuild,hasRoadAccess,pops,prevMesh,musicTick,scheduleStep,buildMusicChain,news,cityIssues,checkIssues,doIssueAction,setTrayMin,get issuesNow(){return issuesNow},setIssueToasts(v){issueToastsOn=v},richToast,wpos,sun,machines,ducks,capys,butterflies,planes,harvestMachine,spawnDucks,spawnCapys,spawnButterflies,computeCropBonus,cropGrow,cropVal,industryRate,cityBoost,spinnersY,beams,CATS,computeStats,near,anchorOf,fpTiles,fitAt,isMulti,sizeOf,fixFootprints,buildLot,QROT,trains,barriers,closedX,airPlanes,ships,isRail,railInfo,railMask,railLink,stationTrack,lotTile,stationLinked,stationOnLoop,railFlowReverse,pathPoint,updateTransporte,manageTransport,forceAirplane,forceShip,portDock,cityIssues,fpSide,CATS,updateCars,cityBoost,trainReverse,placeTrain,peds,personModel,ROLES,waterTopMat,spawnCar,spawnParked,newTrip,lotSlots,lotTargets,carRoute,slotCar,lotBusy,frontRoad,carModel,updateAnimals,spawnPed,pedSpawnSpots,managePeds,updatePeds,updatePessoas,updateSignals,carLight,walkOk,isJunction,isSignal,signalLamps,pedCrossing,pedRoute,get sigT(){return sigT},sigSet,redLeft,onWalk,checkIssues,tryVisit,lotSeats,seatsTaken,bridgeProfile,bridgeRuns,bridgeH,bridgePart,deckLift,lowBridge,shipPath,shipChannel,shipLine,waterShore,wxSlot,WX_SLOT,spawnMudanca,cityEntrance,arrivalInfo,upgradeOf,doUpgrade,UPGRADE,nearPop,fpCenter,brazukaLogoMat,metroNear,arrivalsPerCycle,openObra,spawnEsp,manageEmergencia,animalGap,ANIMAL_SHAPE,sitPose,bench,mulberry,tube,addGente,chicken,personModel,cow,horse,sheep,ZOO_MAKE,roadModel,planeModel,shipModel,winMat,lampMat,tailMat,ESP,hasSlots,upgradeGain,brl,genAt,face,set sigT(v){sigT=v},refreshObj,forcePlane,EVT,eventoDe,checkEventos,setEvento,evtOff,updateEventos,luzMats,scene,objs,pascoaDia,fogos,updateVidaNova,cityList,saveCitySlot,deleteCity,loadCity,migrateCities,cityKey,newWorld,genWorld,WORLDS,WORLD_ORDER,weatherSeen,get booted(){return RV.booted},get fatal(){return RV.fatal},
     ECON,MODES,TITLES,GOALS,TIER,unlocked,tierOf,titleForPop,titleNeed,progressTick,priceOf,modeOf,lockText,
     groundAt,get landSel(){return landSel},closePanel,OFF,START,BLK,NBK,I0,LAND,owned,blockOf,startOwn,buyLand,landPrice,landState,landInfo,landRing,refreshLand,openLand,landSigns,landVeil,ownedBounds,genOuter,
     tut,TUT_PASSOS,tutStart,tutStop,tutTick,tutConclui,tutNaNova,tutLugar,genMap,MCTX,ESTILOS,modeloDe,panelKind:()=>panelKind,openPanel,
