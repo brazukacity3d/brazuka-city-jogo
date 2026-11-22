@@ -2562,9 +2562,11 @@ function updateEventos(dt,clock){const lb=typeof litBlend==='number'?litBlend:0;
   // fora da festa, as construções de época ficam apagadas
   const on=!!EVT.atual;luzMats.forEach((m,k)=>m.emissiveIntensity=on?.22+lb*(k%2===t?1.25:.55):0);
   const px=pxUnid();luzPts.forEach((m,k)=>{m.size=Math.max(1.5,(.028+lb*.022)*px);m.opacity=.75+lb*(k===t?.25:-.2)});
-  updateFogos(dt)}
+  updateFogos(dt);updateBlocos(dt,_evtBlink)}
 
 /* ---------- enfeite automático nas construções ---------- */
+// ruas que ganham enfeite (a de terra fica sem)
+const RUA_ENF=new Set(['rua','asfalto','pedra']);
 const ENFEITE_CATS=new Set(['moradias','comercio','servicos','educacao','monumentos']);
 const _ev=new THREE.Vector3();
 // medidas do prédio (sem o chão do lote nem os arbustos): pontos do modelo acima de 0,22
@@ -2598,7 +2600,7 @@ function arvoreNatal(g,x,z,s=1,seed=0){C(g,.05*s,.06*s,.05*s,'#6e4b33',x,0,z);C(
   estrela(g,x,.5*s,z,.07*s);return g}
 const _decCache=new Map();
 // varal de luz cruzando a rua reta, de calçada a calçada, a cada três lotes
-function varalRua(i,d,inner){if(!d.road||d.road.kind!=='rua'||d.rail)return;const x=i%N,z=Math.floor(i/N);if((x+z)%3)return;
+function varalRua(i,d,inner){if(!d.road||!RUA_ENF.has(d.road.kind)||d.rail)return;const x=i%N,z=Math.floor(i/N);if((x+z)%3)return;
   const ex=isRoad(nbr(i,1,0))&&isRoad(nbr(i,-1,0)),ez=isRoad(nbr(i,0,1))&&isRoad(nbr(i,0,-1));if(ex===ez)return;
   const g=new THREE.Group();g.userData.decor=1;const a=ex?[0,0,-.47]:[-.47,0,0],b=ex?[0,0,.47]:[.47,0,0],pos=[[],[]],col=[[],[]],c=new THREE.Color();
   for(const p of[a,b])rod(g,[p[0],0,p[2]],[p[0],.46,p[2]],.008,'#3a4448');
@@ -2606,6 +2608,7 @@ function varalRua(i,d,inner){if(!d.road||d.road.kind!=='rua'||d.rail)return;cons
   for(const t of[0,1]){const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos[t],3));geo.setAttribute('color',new THREE.Float32BufferAttribute(col[t],3));const p=new THREE.Points(geo,luzPts[t]);p.userData.decor=1;p.renderOrder=3;g.add(p)}
   inner.add(g)}
 function decorEvento(i,st,d,inner){if(!EVT.atual||!enfeitesOn()||d.evento)return;
+  if(EVT.atual==='carnaval'){decorCarnaval(i,st,d,inner);return}
   if(EVT.atual==='natal'){
     if(d.road){varalRua(i,d,inner);return}
     if(!ENFEITE_CATS.has(d.cat))return;
@@ -2618,7 +2621,7 @@ let _evtSig=null;
 function evtSync(){const b=brasilia();EVT.atual=festaDe(b);EVT.reveillon=EVT.atual==='natal'&&reveillonDe(b);_evtSig=(EVT.atual||'-')+':'+enfeitesOn();_decCache.clear()}
 function checkEventos(force){const b=brasilia(),e=festaDe(b);EVT.reveillon=e==='natal'&&reveillonDe(b);const sig=(e||'-')+':'+enfeitesOn();
   if(!force&&sig===_evtSig)return false;const antes=EVT.atual;EVT.atual=e;_evtSig=sig;_decCache.clear();
-  if(typeof W!=='undefined'&&W&&W.b)for(let i=0;i<N*N;i++)if(W.b[i]&&!isNatureId(W.b[i].id)&&(!ITEMS[W.b[i].id].road||ITEMS[W.b[i].id].road.kind==='rua'))refreshObj(i,false);
+  if(typeof W!=='undefined'&&W&&W.b)for(let i=0;i<N*N;i++)if(W.b[i]&&!isNatureId(W.b[i].id)&&(!ITEMS[W.b[i].id].road||RUA_ENF.has(ITEMS[W.b[i].id].road.kind)))refreshObj(i,false);
   if(typeof renderItems==='function'&&typeof game!=='undefined'&&game.active){if(game.tool.mode==='build'&&game.tool.item&&evtOff(ITEMS[game.tool.item]))setTool('look');renderItems()}
   if(antes!==e&&e&&typeof game!=='undefined'&&game.active&&typeof news==='function')news(`Começou o ${EVENTOS[e].n}! ${EVENTOS[e].dica}`);
   return true}
@@ -2635,6 +2638,8 @@ function updateFogos(dt){const show=EVT.reveillon&&enfeitesOn()&&typeof isNight=
     a.needsUpdate=true;f.p.material.size=Math.max(2,f.s0*pxUnid());f.p.material.opacity=Math.max(0,1-f.t/1.8);if(f.t>1.8){scene.remove(f.p);f.p.geometry.dispose();f.p.material.dispose();fogos.splice(k,1)}}}
 
 /* ---------- construções de época: Natal ---------- */
+// BUG-071: o tamanho do terreno (LOTS) é copiado para os itens quando 03c-lotes.js carrega, antes destas construções existirem; aqui ele é copiado na hora
+function lote(id,o){LOTS[id]=o;Object.assign(ITEMS[id],{size:o.size,lot:o})}
 // haste entre dois pontos (festão, fio, armação de luz)
 const _ra=new THREE.Vector3(),_rb=new THREE.Vector3(),_rq=new THREE.Quaternion(),_rup=new THREE.Vector3(0,1,0);
 function rod(g,a,b,r,mat){_ra.set(a[0],a[1],a[2]);_rb.set(b[0],b[1],b[2]);const L=_ra.distanceTo(_rb);if(L<1e-4)return null;const m=new THREE.Mesh(G.cylLo,typeof mat==='string'?M(mat):mat);
@@ -2750,8 +2755,168 @@ def('feira_natal',{cat:'lazer',name:'Feira de Natal',cost:700,shop:180,energy:2,
     tronoNoel(g,.0,.3,r);arvoreNatal(g,-.7,.3,.75,1);arvoreNatal(g,.72,.32,.68,4);
     bench(g,-.36,.38,Math.PI);bench(g,.38,.38,Math.PI);
     return g}});
-LOTS.arvore_natal={size:[2,2],fill:'calcada'};
-LOTS.feira_natal={size:[2,1],fill:'calcada'};
+lote('arvore_natal',{size:[2,2],fill:'calcada',max:1});
+lote('feira_natal',{size:[2,1],fill:'calcada'});
+
+/* ================= Carnaval (v0.22.0) ================= */
+const FOLIA=['#e8343c','#f6c02c','#2f9e5a','#2f7fd6','#c53fa6','#ff8a2a','#22b5c4'];
+// bandeirolas: triângulos coloridos num cordão, em um só mesh com cor por vértice
+const bandMat=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide});
+function bandeirolas(pts,seed,tam=.05){const pos=[],col=[],c=new THREE.Color();
+  for(let k=0;k<pts.length-1;k++){const a=pts[k],b=pts[k+1];c.set(FOLIA[(k+seed)%FOLIA.length]);const mx=(a[0]+b[0])/2,mz=(a[2]+b[2])/2,my=(a[1]+b[1])/2;
+    pos.push(a[0],a[1],a[2],b[0],b[1],b[2],mx,my-tam,mz);for(let j=0;j<3;j++)col.push(c.r,c.g,c.b)}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setAttribute('color',new THREE.Float32BufferAttribute(col,3));geo.computeVertexNormals();
+  const m=new THREE.Mesh(geo,bandMat);m.userData.decor=1;m.castShadow=true;return m}
+const _m2=new Map();const M2=c=>{let m=_m2.get(c);if(!m){m=new THREE.MeshLambertMaterial({color:c,side:THREE.DoubleSide});_m2.set(c,m)}return m};
+// nas construções (que são mescladas por material) as cores vão em meshes separados, um por cor
+function porCor(pos,col,g){const by=new Map();for(let k=0;k<pos.length/9;k++){const key=col[k];if(!by.has(key))by.set(key,[]);by.get(key).push(...pos.slice(k*9,k*9+9))}
+  for(const[c,p]of by){const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(p,3));geo.computeVertexNormals();const m=new THREE.Mesh(geo,M2(c));m.castShadow=true;m.receiveShadow=true;g.add(m)}}
+function bandeirolasM(g,pts,seed,tam=.05){const pos=[],col=[];for(let k=0;k<pts.length-1;k++){const a=pts[k],b=pts[k+1];pos.push(a[0],a[1],a[2],b[0],b[1],b[2],(a[0]+b[0])/2,(a[1]+b[1])/2-tam,(a[2]+b[2])/2);col.push(FOLIA[(k+seed)%FOLIA.length])}porCor(pos,col,g)}
+function confeteM(g,n,seed,x0,x1,z0,z1,y=.046){const r=mulberry(seed),pos=[],col=[];for(let k=0;k<n;k++){const x=x0+r()*(x1-x0),z=z0+r()*(z1-z0),s=.008+r()*.006,a=r()*3,ca=Math.cos(a)*s,sa=Math.sin(a)*s;
+    const q=[[x-ca+sa,z-sa-ca],[x+ca+sa,z+sa-ca],[x+ca-sa,z+sa+ca],[x-ca-sa,z-sa+ca]];const c=FOLIA[k%FOLIA.length];for(const tri of[[0,1,2],[0,2,3]]){pos.push(...tri.flatMap(t=>[q[t][0],y,q[t][1]]));col.push(c)}}porCor(pos,col,g)}
+// cordão com barriguinha entre dois pontos, a cada passo
+function cordao(a,b,h,sag,passo=.06){const L=Math.hypot(b[0]-a[0],b[2]-a[2]),n=Math.max(2,Math.round(L/passo)),out=[];for(let k=0;k<=n;k++){const u=k/n;out.push([a[0]+(b[0]-a[0])*u,h-sag*Math.sin(Math.PI*u),a[2]+(b[2]-a[2])*u])}return out}
+// confete no chão: quadradinhos coloridos achatados
+function confete(n,seed,x0,x1,z0,z1,y=.046){const r=mulberry(seed),pos=[],col=[],c=new THREE.Color();
+  for(let k=0;k<n;k++){const x=x0+r()*(x1-x0),z=z0+r()*(z1-z0),s=.008+r()*.006,a=r()*3;c.set(FOLIA[k%FOLIA.length]);const ca=Math.cos(a)*s,sa=Math.sin(a)*s;
+    const q=[[x-ca+sa,z-sa-ca],[x+ca+sa,z+sa-ca],[x+ca-sa,z+sa+ca],[x-ca-sa,z-sa+ca]];for(const t of[0,1,2,0,2,3]){pos.push(q[t][0],y,q[t][1]);col.push(c.r,c.g,c.b)}}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setAttribute('color',new THREE.Float32BufferAttribute(col,3));geo.computeVertexNormals();
+  const m=new THREE.Mesh(geo,bandMat);m.userData.decor=1;m.receiveShadow=true;return m}
+// sombrinha de frevo: guarda-chuva pequeno de gomos coloridos (Nordeste)
+const _somGeos=Array.from({length:8},(_,k)=>new THREE.ConeGeometry(.5,.28,2,1,true,k*Math.PI/4,Math.PI/4));
+function sombrinha(g,x,y,z,s=1,seed=0){const cols=['#e8343c','#f6c02c','#2f9e5a','#2f7fd6'];const sg=new THREE.Group();sg.position.set(x,y,z);sg.scale.setScalar(s);g.add(sg);
+  _somGeos.forEach((geo,k)=>{const m=new THREE.Mesh(geo,M2(cols[(k+seed)%4]));m.scale.set(.1,.1,.1);m.position.y=.014;m.castShadow=true;sg.add(m)});C(sg,.004,.05,.004,'#3b3530',0,-.036,0);return sg}
+// máscara de Carnaval (com os furos dos olhos e duas plumas)
+const _mascGeo=(()=>{const sh=new THREE.Shape();sh.moveTo(-.5,.1);sh.bezierCurveTo(-.5,.42,-.12,.3,0,.18);sh.bezierCurveTo(.12,.3,.5,.42,.5,.1);sh.bezierCurveTo(.5,-.2,.18,-.22,0,-.05);sh.bezierCurveTo(-.18,-.22,-.5,-.2,-.5,.1);
+  for(const s of[-1,1]){const h=new THREE.Path();h.absellipse(s*.24,.08,.11,.07,0,Math.PI*2,false,0);sh.holes.push(h)}const g=new THREE.ExtrudeGeometry(sh,{depth:.06,bevelEnabled:false});g.translate(0,0,-.03);return g})();
+function mascara(g,x,y,z,s,cor,ry=0){const m=new THREE.Mesh(_mascGeo,M(cor));m.scale.setScalar(s);m.position.set(x,y,z);m.rotation.y=ry;m.castShadow=true;g.add(m);
+  for(const k of[-1,1]){const p=K(g,s*.08,s*.5,s*.03,k<0?'#2f9e5a':'#c53fa6',x+k*s*.36,y+s*.22,z);p.rotation.z=-k*.4}return m}
+
+// enfeite automático do Carnaval: bandeirolas nas casas e no comércio, máscara na frente do comércio; nas ruas, cordões de bandeirolas e confete
+function decorCarnaval(i,st,d,inner){
+  if(d.road){if(!RUA_ENF.has(d.road.kind)||d.rail)return;const x=i%N,z=Math.floor(i/N);const g=new THREE.Group();g.userData.decor=1;
+    g.add(confete(26,i*7+1,-.3,.3,-.3,.3));
+    if(!((x+z)%3)){const ex=isRoad(nbr(i,1,0))&&isRoad(nbr(i,-1,0)),ez=isRoad(nbr(i,0,1))&&isRoad(nbr(i,0,-1));
+      if(ex!==ez){const A=ex?[0,0,-.47]:[-.47,0,0],Bp=ex?[0,0,.47]:[.47,0,0];for(const p of[A,Bp])rod(g,[p[0],0,p[2]],[p[0],.46,p[2]],.008,'#3a4448');
+        g.add(bandeirolas(cordao(A,Bp,.45,.08,.055),x));
+        // segundo cordão, cruzado na diagonal
+        const A2=ex?[-.2,0,-.47]:[-.47,0,-.2],B2=ex?[.2,0,.47]:[.47,0,.2];g.add(bandeirolas(cordao(A2,B2,.43,.07,.055),x+3));
+        if(MCTX.estilo==='nordeste')for(let k=1;k<4;k++){const u=k/4;sombrinha(g,A[0]+(Bp[0]-A[0])*u,.45-.08*Math.sin(Math.PI*u)-.03,A[2]+(Bp[2]-A[2])*u,.9,k+x)}}}
+    inner.add(g);return}
+  if(d.cat!=='moradias'&&d.cat!=='comercio')return;
+  const key=modelKey(i);let m=_decCache.get(key);if(m===undefined){m=medidaPredio(inner,st.id);_decCache.set(key,m)}if(!m)return;
+  const g=new THREE.Group();g.userData.decor=1;const alto=m.top>1.25,h=alto?Math.min(m.top,.62):clamp(m.top*.62,.2,.48),e=.025,X0=m.x0-e,X1=m.x1+e,Z0=m.z0-e,Z1=m.z1+e;
+  const lados=d.cat==='comercio'||!alto?[[X0,Z1,X1,Z1],[X1,Z1,X1,Z0],[X1,Z0,X0,Z0],[X0,Z0,X0,Z1]]:[[X0,Z1,X1,Z1]];
+  lados.forEach(([ax,az,bx,bz],k)=>g.add(bandeirolas(cordao([ax,0,az],[bx,0,bz],h,.03,.05),i+k*2,.045)));
+  if(d.cat==='comercio')mascara(g,(X0+X1)/2,h+.07,Z1+.01,.13,pick(mulberry(i),['#d9a830','#c53fa6','#2f7fd6','#e8343c']));
+  inner.add(g)}
+
+// fantasias dos foliões (por cima do modelo de pessoa)
+function fantasia(g,k,r){switch(k%6){
+  // pirata: chapéu de três pontas com caveira, tapa-olho e faixa vermelha
+  case 0:B(g,.09,.03,.06,'#1a1a1a',0,.168,0);B(g,.06,.02,.09,'#1a1a1a',0,.174,0);S(g,.016,'#f4f1ea',0,.18,.034);B(g,.016,.014,.006,'#1a1a1a',-.012,.14,.027);B(g,.062,.005,.005,'#1a1a1a',0,.147,.025);B(g,.06,.012,.044,'#c8302a',0,.1,.004);break;
+  // havaiana: colar de flores grande e coroa de flores
+  case 1:for(let j=0;j<12;j++){const a=j/12*Math.PI*2;S(g,.018,FOLIA[j%FOLIA.length],Math.cos(a)*.034,.11,Math.sin(a)*.028+.004)}for(let j=0;j<8;j++){const a=j/8*Math.PI*2;S(g,.016,j%2?'#ff7ad9':'#f6c02c',Math.cos(a)*.028,.165,Math.sin(a)*.028)}break;
+  // bailarina/colombina: máscara dourada, saia de tule rosa e laço
+  case 2:B(g,.056,.018,.008,'#d9a830',0,.142,.027);part(_cone10,'#ff8ac0',.12,.045,.11,0,.055,0,g);part(_cone10,'#ffc2dc',.1,.03,.09,0,.07,0,g);S(g,.022,'#ff4f9a',0,.172,-.01);break;
+  // super-herói: capa vermelha comprida, máscara azul e escudo no peito
+  case 3:{const c=B(g,.08,.13,.008,'#d42a2a',0,.01,-.028);c.rotation.x=.16;B(g,.056,.016,.008,'#2f5fa8',0,.142,.026);S(g,.03,'#f6c02c',0,.1,.024).scale.set(.03,.03,.008);break}
+  // marinheiro: quepe branco com fita azul e gola listrada
+  case 4:C(g,.058,.024,.058,'#f4f1ea',0,.16,0);C(g,.064,.006,.064,'#2f5fa8',0,.162,0);B(g,.066,.006,.036,'#2f5fa8',0,.122,.016);B(g,.066,.004,.036,'#f4f1ea',0,.128,.017);break;
+  // arlequim: losangos coloridos no peito e chapéu de bobo com guizos
+  case 5:for(let j=0;j<6;j++)B(g,.024,.024,.004,FOLIA[(j*2)%FOLIA.length],(j%3-1)*.022,.085+Math.floor(j/3)*.026,.023).rotation.z=.78;for(const s2 of[-1,1]){const h=part(_cone10,s2<0?'#c53fa6':'#f6c02c',.03,.07,.03,s2*.022,.16,0,g);h.rotation.z=-s2*.7;S(g,.014,'#f6c02c',s2*.055,.205,0)}break}
+  if(MCTX.estilo==='nordeste'&&r()<.45){const sm=sombrinha(g,.05,.2,0,.55,k);sm.userData.sombrinha=1}
+  return g}
+const fantasiaDe=(role,v,fv)=>getModel(`p:${role}:${v}:${MCTX.estilo}:f${fv}`,()=>fantasia(personModel(role,mulberry(v*977+role.length*31+3)),fv,mulberry(fv*13+v)));
+
+// carroceria do trio elétrico: palco com caixas de som, painéis de luz, toldo com franja, cantor e dançarinos
+function trioCarroceria(g){RB(g,.21,.07,.64,'#2b2b2b',0,.04,-.18,.01);B(g,.214,.02,.64,'#f2c230',0,.1,-.18);
+  for(const sd of[-1,1]){
+    // paredão de som dos dois lados
+    for(let k=0;k<4;k++){const z=-.42+k*.1;RB(g,.012,.12,.09,'#1c1c1c',sd*.104,.11,z,.004);CX(g,.005,.026,'#555b60',sd*.111,.15,z,'x');CX(g,.005,.016,'#555b60',sd*.111,.2,z,'x')}
+    // painel de lâmpadas que pisca
+    for(let k=0;k<10;k++)bulb(g,sd*.112,.105,-.46+k*.065,k+(sd>0?1:0),.012);
+    C(g,.01,.2,.01,'#9aa0a4',sd*.09,.23,-.04);C(g,.01,.2,.01,'#9aa0a4',sd*.09,.23,-.46)}
+  // palco de cima com grade, toldo com franja colorida e luzes
+  B(g,.2,.012,.48,'#3b3f43',0,.23,-.25);for(const sd of[-1,1])B(g,.006,.04,.48,'#c9ccd2',sd*.098,.245,-.25);
+  for(let k=0;k<5;k++)B(g,.22,.012,.1,k%2?'#f6c02c':'#e8343c',0,.43,-.45+k*.1);for(let k=0;k<12;k++)B(g,.02,.025,.006,FOLIA[k%FOLIA.length],-.1+k*.018,.41,-.002),B(g,.02,.025,.006,FOLIA[(k+3)%FOLIA.length],-.1+k*.018,.41,-.498);
+  for(let k=0;k<8;k++)bulb(g,-.09+k*.026,.42,-.0,k,.01);
+  // cantor no microfone e dois dançarinos (balançam: userData.bob)
+  const gente=[[0,-.12,'#f6c02c'],[-.06,-.3,'#2f9e5a'],[.06,-.34,'#c53fa6']];
+  gente.forEach(([x,z,cor],k)=>{const p=new THREE.Group();p.position.set(x,.236,z);p.userData.dyn=1;p.userData.bob=1+k;g.add(p);K(p,.035,.06,.03,cor,0,0,0);S(p,.024,['#c98e62','#8a5a3a','#e3b08a'][k],0,.075,0);for(const s of[-1,1]){const b=B(p,.008,.04,.008,cor,s*.02,.05,0);b.rotation.z=s*2.4}});
+  C(g,.003,.06,.003,'#1a1a1a',0,.236,-.08);S(g,.008,'#1a1a1a',0,.3,-.08)}
+
+// bloco atrás do trio: foliões fantasiados que pulam e seguem o rastro do caminhão
+const blocos=new Map();
+function blocoDe(c){let b=blocos.get(c);if(b)return b;const g=new THREE.Group();scene.add(g);const ps=[];const n=9;
+  for(let k=0;k<n;k++){const m=fantasiaDe('comum',k%6,k);m.traverse(o=>{if(o.userData&&o.userData.limb==='bracoE')o.rotation.z=-2.5+((k*37)%10)/20;if(o.userData&&o.userData.limb==='bracoD')o.rotation.z=2.5-((k*53)%10)/20});m.position.copy(c.m.position);g.add(m);ps.push({m,ph:k*.9,d:.64+Math.floor(k/3)*.12,lat:((k%3)-1)*.07+(Math.floor(k/3)%2?.03:0)})}
+  b={g,ps,trail:[]};blocos.set(c,b);return b}
+const _bv=new THREE.Vector3();
+function updateBlocos(dt,t){const trios=new Set();if(typeof cars!=='undefined')for(const c of cars)if(c.type==='trio')trios.add(c);
+  for(const[c,b]of blocos)if(!trios.has(c)||!c.m.parent){scene.remove(b.g);blocos.delete(c)}
+  for(const c of trios){const vivo=!evtOff(ITEMS.trio_eletrico);const b=blocoDe(c);b.g.visible=vivo&&enfeitesOn();if(!b.g.visible)continue;
+    const p=c.m.position,h=c.m.rotation.y,parado=!!c.free;const L=b.trail;
+    if(!L.length||Math.hypot(L[0].x-p.x,L[0].z-p.z)>.02){L.unshift({x:p.x,z:p.z});if(L.length>80)L.pop()}
+    b.ps.forEach((q,k)=>{let tx,tz,th;
+      if(parado){const fx=Math.sin(h),fz=Math.cos(h),dd=.34+q.d*.8;tx=p.x+fx*dd+fz*q.lat*1.6;tz=p.z+fz*dd-fx*q.lat*1.6;th=h+Math.PI}
+      else{let acc=0,j=0;const want=q.d;for(;j<L.length-1;j++){const s=Math.hypot(L[j+1].x-L[j].x,L[j+1].z-L[j].z);if(acc+s>=want)break;acc+=s}
+        const A=L[Math.min(j,L.length-1)],Bq=L[Math.min(j+1,L.length-1)],dx=A.x-Bq.x,dz=A.z-Bq.z,ln=Math.hypot(dx,dz)||1;let bx=A.x,bz=A.z;
+        if(j>=L.length-1){bx=p.x-Math.sin(h)*want;bz=p.z-Math.cos(h)*want}th=ln>1e-4&&j<L.length-1?Math.atan2(dx,dz):h;tx=bx+Math.cos(th)*q.lat;tz=bz-Math.sin(th)*q.lat}
+      const m=q.m,kk=Math.min(1,dt*4);m.position.x+=(tx-m.position.x)*kk;m.position.z+=(tz-m.position.z)*kk;m.position.y=.02+Math.abs(Math.sin(t*7+q.ph))*.025;m.rotation.y=th+Math.sin(t*3+q.ph)*.3})}
+  // dançarinos de cima do trio
+  if(typeof cars!=='undefined')for(const c of trios)c.m.traverse(o=>{if(o.userData.bob)o.position.y=.236+Math.abs(Math.sin(t*6+o.userData.bob))*.018})}
+
+// Trio elétrico: concentração 2×2 com o caminhão do trio, que sai pelas ruas puxando o bloco
+def('trio_eletrico',{cat:'lazer',name:'Trio elétrico',cost:1200,happy:10,daily:55,energy:3,needsRoad:true,evento:'carnaval',
+  desc:'A concentração do bloco com o trio elétrico. No Carnaval o caminhão sai pelas ruas com o bloco de foliões atrás e volta para cá. Felicidade +10 enquanto a festa dura.',
+  make(r){const g=new THREE.Group();RB(g,1.9,.03,1.9,'#d8d0bf',0,0,0,.02);
+    // faixa de chão pintada para o caminhão e área do bloco
+    B(g,.34,.012,1.9,'#5d6266',0,.03,0);for(let k=0;k<6;k++)B(g,.03,.014,.12,'#f2c230',0,.035,-.8+k*.3);
+    confeteM(g,120,77,-.9,.9,-.9,.9,.044);
+    // portal de entrada com bandeirolas e a placa colorida
+    for(const s of[-1,1]){C(g,.04,.62,.04,'#e8343c',s*.32,.03,.82);S(g,.06,'#f6c02c',s*.32,.66,.82)}B(g,.7,.1,.04,'#2f7fd6',0,.56,.82);for(let k=0;k<7;k++)B(g,.08,.06,.045,FOLIA[k],-.27+k*.09,.56,.83);
+    bandeirolasM(g,cordao([-.9,0,-.9],[-.9,0,.9],.5,.06),1);bandeirolasM(g,cordao([.9,0,-.9],[.9,0,.9],.5,.06),4);bandeirolasM(g,cordao([-.9,0,-.9],[.9,0,-.9],.5,.06),2);
+    for(const[x,z]of[[-.9,-.9],[.9,-.9],[-.9,.9],[.9,.9]])C(g,.02,.52,.02,'#3a4448',x,.03,z);
+    // barraca de bebidas e caixas de isopor
+    RB(g,.36,.14,.2,'#f4f1ea',-.62,.03,-.55,.01);for(let k=0;k<6;k++){const t=B(g,.065,.012,.24,k%2?'#2f9e5a':'#f6c02c',-.78+k*.065,.36,-.54);t.rotation.x=-.25}for(const s of[-1,1])C(g,.018,.32,.018,'#7a5434',-.62+s*.17,.03,-.46);
+    for(let k=0;k<3;k++)RB(g,.08,.06,.06,'#3f9fd6',-.75+k*.11,.03,-.32,.01);
+    // bonecos gigantes (como os de Olinda) esperando o desfile
+    for(const[x,z,cor,pele]of[[.58,-.68,'#c53fa6','#c98e62'],[.62,.3,'#2f7fd6','#8a5a3a']]){part(_cone10,cor,.22,.4,.22,x,.03,z,g);C(g,.05,.04,.05,pele,x,.42,z);S(g,.2,pele,x,.44,z);part(G.hemi,'#2b2018',.21,.1,.21,x,.54,z,g);for(const s of[-1,1]){S(g,.03,'#1a1a1a',x+s*.04,.55,z+.088);const b=B(g,.035,.2,.035,cor,x+s*.11,.2,z);b.rotation.z=s*.3;S(g,.04,pele,x+s*.135,.18,z)}B(g,.06,.015,.01,'#a82822',x,.49,z+.098)}
+    bench(g,-.62,.2,Math.PI/2);bench(g,-.62,.55,Math.PI/2);
+    return g}});
+lote('trio_eletrico',{size:[2,2],fill:'calcada',max:1,slots:[[0,-.15,'trio']]});
+// Arquibancada do desfile: três degraus com gente sentada, toldo e luzes, de frente para a rua
+function sentado(g,x,y,z,cor,pele,braco){K(g,.04,.05,.035,cor,x,y,z);S(g,.028,pele,x,y+.07,z);B(g,.03,.012,.04,'#2f4a73',x,y,z+.03);if(braco)for(const s of[-1,1]){const b=B(g,.008,.04,.008,cor,x+s*.022,y+.06,z);b.rotation.z=s*2.6}}
+def('arquibancada',{cat:'lazer',name:'Arquibancada do desfile',cost:800,happy:7,daily:35,needsRoad:true,evento:'carnaval',
+  desc:'Arquibancada colorida de frente para a rua, cheia de gente vendo o bloco passar. Só no Carnaval. Felicidade +7 e visitas enquanto a festa dura.',
+  make(r){const g=new THREE.Group();RB(g,2.9,.03,.94,'#d8d0bf',0,0,0,.01);
+    const SK=['#c98e62','#8a5a3a','#e3b08a','#6b4430','#f0c8a0'];
+    for(let k=0;k<3;k++){const z=-.25+k*.17,y=.03+(2-k)*.1;RB(g,2.7,.1+(2-k)*.1,.17,'#9aa0a4',0,.03,z,.006);B(g,2.72,.012,.17,FOLIA[k*2],0,y+.1,z);
+      for(let j=0;j<22;j++)if(r()<.75)sentado(g,-1.26+j*.12,y+.11,z-.01,pick(r,FOLIA),pick(r,SK),r()<.4)}
+    // toldo listrado em cima, com postes
+    for(const x of[-1.35,-.45,.45,1.35])C(g,.025,.62,.025,'#3a4448',x,.03,-.34);
+    for(let k=0;k<14;k++){const t=B(g,.2,.012,.5,k%2?'#e8343c':'#f4f1ea',-1.3+k*.2,.66,-.12);t.rotation.x=.15}
+    for(let k=0;k<28;k++)bulb(g,-1.35+k*.1,.6,.13,k%2,.014);
+    // grade da frente e faixa de bandeirolas
+    B(g,2.72,.04,.012,'#c9ccd2',0,.06,.08);bandeirolasM(g,cordao([-1.4,0,.14],[1.4,0,.14],.6,.04,.07),3);
+    for(const s of[-1,1])mascara(g,s*1.42,.42,-.33,.18,s<0?'#d9a830':'#c53fa6',s*.5);
+    return g}});
+lote('arquibancada',{size:[3,1],fill:'calcada'});
+// Barraca de fantasias: tenda com araras de fantasias, máscaras penduradas e chapéus
+def('barraca_fantasia',{cat:'lazer',name:'Barraca de fantasias',cost:400,shop:120,needsRoad:true,happy:3,evento:'carnaval',
+  desc:'Fantasias, máscaras, confete e serpentina para o bloco. Só no Carnaval. Vende como comércio enquanto a festa dura.',
+  make(r){const g=new THREE.Group();RB(g,.94,.03,.94,'#ddd4c2',0,0,0,.01);confeteM(g,40,31,-.4,.4,-.4,.4,.044);
+    for(const x of[-.36,.36])for(const z of[-.3,.24])C(g,.02,.44,.02,'#7a5434',x,.03,z);
+    for(let k=0;k<8;k++){const t=B(g,.1,.012,.62,k%2?'#c53fa6':'#f6c02c',-.35+k*.1,.48,-.03);t.rotation.x=-.12}
+    for(let k=0;k<8;k++){B(g,.1,.04,.006,k%2?'#f6c02c':'#c53fa6',-.35+k*.1,.44,.29)}
+    // araras com fantasias penduradas
+    for(const z of[-.18,.02]){C(g,.006,.26,.006,'#9aa0a4',-.25,.03,z);C(g,.006,.26,.006,'#9aa0a4',.25,.03,z);CX(g,.5,.004,'#9aa0a4',0,.29,z,'x');
+      for(let k=0;k<7;k++){const cor=FOLIA[(k+(z>0?3:0))%FOLIA.length];part(_cone10,cor,.06,.13,.03,-.21+k*.07,.15,z,g)}}
+    // balcão com chapéus e confete; máscaras penduradas na frente
+    RB(g,.6,.12,.14,'#9a6b45',0,.03,.2,.008);for(let k=0;k<4;k++){part(_cone10,FOLIA[k+1],.05,.06,.05,-.2+k*.13,.15,.2,g);S(g,.012,'#f6c02c',-.2+k*.13,.215,.2)}
+    for(let k=0;k<4;k++)mascara(g,-.27+k*.18,.36,.3,.09,['#d9a830','#2f7fd6','#e8343c','#2f9e5a'][k]);
+    sombrinha(g,.36,.5,.3,.8,1);
+    return g}});
 
 /* ---- js/04-mundo.js ---- */
 'use strict';
@@ -3500,12 +3665,14 @@ function carModel(type,color,off){
   else if(type==='viatura'){passeio('#f4f4f0',.34,true);for(const sd of[-1,1])B(g,.004,.026,.3,'#27364a',sd*.091,.05,0);B(g,.12,.004,.07,'#27364a',0,.097,.125);sirene(g,.162,-.012)}
   // v0.17.3: van amarela dos Correios, com a faixa azul
   else if(type==='correio'){furgao('#f2c230',false);for(const sd of[-1,1])B(g,.004,.03,.3,'#2a5ba8',sd*.096,.1,-.01)}
+  // v0.22 (DEC-031): trio elétrico do Carnaval: cabine de caminhão e a carroceria com palco, caixas de som e luzes (js/03f-eventos.js)
+  else if(type==='trio'){cabine('#f2c230',.14);trioCarroceria(g);wheels([-.095,.095],[.2,-.08,-.22,-.4],.036)}
   else if(type==='ambulancia'){furgao('#f7f7f4',false);for(const sd of[-1,1]){B(g,.004,.03,.26,'#d9363e',sd*.096,.085,-.04);B(g,.004,.05,.016,'#d9363e',sd*.096,.14,-.06);B(g,.004,.016,.05,'#d9363e',sd*.096,.157,-.06)}sirene(g,.2,.1)}
   else if(type==='bombeiro'){cabine('#d9363e',.14);RB(g,.2,.15,.36,'#c9302c',0,.04,-.07,.012);B(g,.204,.022,.36,'#f2c230',0,.09,-.07);for(const sd of[-1,1]){B(g,.01,.012,.38,'#d8ddd8',sd*.035,.195,-.06);B(g,.006,.06,.09,'#9aa0a4',sd*.1,.11,-.15);B(g,.006,.06,.09,'#9aa0a4',sd*.1,.11,0)}for(let k=0;k<7;k++)B(g,.07,.008,.008,'#d8ddd8',0,.197,-.22+k*.055);for(const sd of[-1,1])CX(g,.1,.022,'#e9e4da',sd*.085,.165,-.1,'z');B(g,.18,.012,.008,dk,0,.03,-.252);sirene(g,.175,.2);wheels([-.09,.09],[.2,-.06,-.19],.036)}
-  const fz=type==='caminhao'||type==='mudanca'?.262:type==='bombeiro'?.262:type==='viatura'?.168:type==='ambulancia'||type==='correio'?.182:type==='moto'?.105:type==='onibus'?.282:type==='van'||type==='pickup'?.18:type==='trator'?.142:(type==='sedan'?.168:.143);
+  const fz=type==='caminhao'||type==='mudanca'||type==='trio'?.262:type==='bombeiro'?.262:type==='viatura'?.168:type==='ambulancia'||type==='correio'?.182:type==='moto'?.105:type==='onibus'?.282:type==='van'||type==='pickup'?.18:type==='trator'?.142:(type==='sedan'?.168:.143);
   // BUG-052: farol e lanterna apagados fazem parte da lataria; a luz acesa é uma peça à parte (userData.farol) que só aparece com o carro andando
   // v0.17.1: os faróis ficam embutidos nos cantos da frente (a moto tem um só, no meio)
-  const moto=type==='moto',rz=-fz+(type==='trator'?.06:0),ly=moto?.1:type==='onibus'?.075:type==='trator'?.1:.064,lw=moto?.022:.034,luz=new THREE.Group();luz.userData.dyn=1;luz.userData.farol=1;
+  const moto=type==='moto',rz=type==='trio'?-.505:-fz+(type==='trator'?.06:0),ly=moto?.1:type==='onibus'?.075:type==='trator'?.1:.064,lw=moto?.022:.034,luz=new THREE.Group();luz.userData.dyn=1;luz.userData.farol=1;
   for(const sd of moto?[0]:[-1,1]){const x=sd*(type==='trator'?.05:.062);B(g,lw,.018,.008,'#d8d4c4',x,ly,fz).castShadow=false;B(g,lw,.018,.008,'#7a2a24',x,moto?.08:ly,rz).castShadow=false;
     if(!off){B(luz,lw+.001,.019,.009,lampMat,x,ly,fz+.0006).castShadow=false;B(luz,lw+.001,.019,.009,tailMat,x,moto?.08:ly,rz-.0006).castShadow=false}}
   if(!off)g.add(luz);return g;
@@ -3525,12 +3692,12 @@ function motoRider(g){const r=Math.random,shirt=pick(r,['#2f5f9e','#d9493f','#3a
   const t=new THREE.Group();t.position.set(0,.1,-.01);t.rotation.x=.4;g.add(t);RB(t,.052,.075,.034,shirt,0,0,0,.012);
   for(const sx of[-1,1]){const a=new THREE.Group();a.position.set(sx*.03,.065,0);a.rotation.x=-1.45;a.rotation.z=sx*.12;t.add(a);B(a,.014,.075,.014,shirt,0,-.075,0);S(a,.016,skin,0,-.078,0)}
   S(g,.016,skin,0,.175,.032);const h=S(g,.048,helm,0,.165,.028);h.scale.set(.048,.045,.052);B(g,.034,.014,.006,'#1f2a33',0,.186,.055)}
-const CAR_HL={hatch:.15,sedan:.175,pickup:.185,van:.185,onibus:.29,trator:.13,caminhao:.29,moto:.11,mudanca:.3,viatura:.175,ambulancia:.185,bombeiro:.29,correio:.185};
+const CAR_HL={hatch:.15,sedan:.175,pickup:.185,van:.185,onibus:.29,trator:.13,caminhao:.29,moto:.11,mudanca:.3,viatura:.175,ambulancia:.185,bombeiro:.29,correio:.185,trio:.62};
 // saída escolhida antes de entrar no cruzamento (para saber se cruza a faixa de algum pedestre)
 function nextFrom(J,from){const opts=DIRS.map(([,dx,dz])=>nbr(J,dx,dz)).filter(j=>isCarRoad(j)&&j!==from);return opts.length?opts[Math.floor(Math.random()*opts.length)]:from}
 // dois carros se cruzam dentro do cruzamento? Só não se cruzam os que vêm do mesmo braço e os que seguem retos em mãos opostas
 function carConflict(o,c,J){if(o.a===c.b)return false;const st=(a,b)=>a>=0&&b>=0&&tx(a)-tx(J)===-(tx(b)-tx(J))&&tz(a)-tz(J)===-(tz(b)-tz(J));return!(st(o.a,o.c)&&st(c.b,c.nn)&&o.a===c.nn)}
-const CAR_SPEED={hatch:1,sedan:1.05,pickup:.95,van:.85,onibus:.75,trator:.45,caminhao:.7,moto:1.15,mudanca:.75,viatura:1.1,ambulancia:1,bombeiro:.85,correio:.9};
+const CAR_SPEED={hatch:1,sedan:1.05,pickup:.95,van:.85,onibus:.75,trator:.45,caminhao:.7,moto:1.15,mudanca:.75,viatura:1.1,ambulancia:1,bombeiro:.85,correio:.9,trio:.4};
 function spawnCar(){const rs=[];for(let i=0;i<N*N;i++)if(isCarRoad(i))rs.push(i);if(!rs.length)return;
   const b=rs[Math.floor(Math.random()*rs.length)];const nb=DIRS.map(([,dx,dz])=>nbr(b,dx,dz)).filter(isCarRoad);if(!nb.length)return;
   const a=nb[Math.floor(Math.random()*nb.length)];
@@ -3560,7 +3727,7 @@ function spawnParked(){const L=[];for(let a=0;a<N*N;a++){const s=W.b[a];if(!s||!
 /* v0.17 (DEC-021): veículos de serviço. Cada vaga reservada (delegacia, hospital, posto de saúde, bombeiros) tem o seu veículo:
    ele fica parado na base, sai para uma ronda pelas ruas (às vezes com a sirene ligada), volta e estaciona de novo.
    Não contam no limite de carros da cidade e nunca são tirados de cena enquanto a base existir. */
-const ESP=new Set(['viatura','ambulancia','bombeiro','correio']);
+const ESP=new Set(['viatura','ambulancia','bombeiro','correio','trio']);
 const hasSlots=id=>{const L=ITEMS[id]&&ITEMS[id].lot;return!!(L&&(L.park||L.slots||L.thru))};
 function spawnEsp(a,q){const type=q.kind;const m=getModel(`car:${type}`,()=>carModel(type,'#f4f4f0'));m.traverse(o=>{if(o.isMesh)o.castShadow=true});scene.add(m);
   const car={m,a:-1,b:-1,c:-1,p:0,type,speed:CAR_SPEED[type],head:0,cur:1,home:a+':'+q.k,sir:[]};m.traverse(o=>{if(o.userData.siren){o.visible=false;car.sir.push(o)}});cars.push(car);parkAt(car,a,q,6+Math.random()*30);return car}
@@ -3589,6 +3756,8 @@ function updateCars(dt){mudT=Math.max(0,mudT-dt);
     // BUG-052: estacionado fica de farol apagado
     if(c.far===undefined){c.far=null;c.m.traverse(o=>{if(o.userData.farol)c.far=o})}if(c.far)c.far.visible=!(c.free&&c.free.fase==='parado');
     if(c.free){if(!updateFreeCar(c,dt)&&!espBack(c))dropCar(k);continue}
+    // DEC-031: acabou o Carnaval, o trio elétrico volta logo para a concentração
+    if(c.type==='trio'&&!c.trip&&evtOff(ITEMS.trio_eletrico))c.ronda=Math.min(c.ronda||0,0);
     if(c.home&&!c.trip){c.ronda=(c.ronda||0)-dt;if(c.ronda<=0){const h=goHome(c);if(h<0){dropCar(k);continue}if(!h)c.ronda=6}}
     if(!isCarRoad(c.a)||!isCarRoad(c.b)||c.c<0||!isCarRoad(c.c)){c.c=isCarRoad(c.b)&&isCarRoad(c.a)?chooseNext(c):-1;if(c.c<0){if(!espBack(c))dropCar(k);continue}}
     // chegou na frente do destino: ônibus para no ponto, carro entra no estacionamento
@@ -3685,7 +3854,10 @@ function carNearPed(x,z){for(const c of cars){if(!c.free||c.free.fase==='parado'
   const u=clamp(dx*hx+dz*hz,-CAR_HL[c.type],CAR_HL[c.type]),ex=dx-hx*u,ez=dz-hz*u;if(ex*ex+ez*ez<.105*.105)return true}return false}
 const LOT_V=.32;
 function updateFreeCar(c,dt){const F=c.free;if(!W.b[F.a]||!objs[F.a])return false;
-  if(F.fase==='parado'){F.wait-=dt;if(F.wait>0||!lotFree(F.a))return true;
+  if(F.fase==='parado'){F.wait-=dt;
+    // DEC-031: fora do Carnaval o trio elétrico fica parado na concentração
+    if(c.type==='trio'&&evtOff(ITEMS.trio_eletrico))F.wait=Math.max(F.wait,3);
+    if(F.wait>0||!lotFree(F.a))return true;
     // sai de ré até o corredor, vai até a entrada e espera a rua ficar livre para entrar no trânsito
     const q=F.q;F.fase='sai';lotBusy.set(F.a,c);
     // espera a vez com o carro todo dentro do terreno (antes o nariz do caminhão ficava em cima da calçada)
@@ -3701,7 +3873,7 @@ function updateFreeCar(c,dt){const F=c.free;if(!W.b[F.a]||!objs[F.a])return fals
     const M=F.merge;Object.assign(c,{a:M.a,b:M.b,c:M.c,p:.5,cur:.2,nn:-1,nnJ:-1,head:M.h});c.free=null;slotCar.delete(F.a+':'+F.q.k);if(lotBusy.get(F.a)===c)lotBusy.delete(F.a);
     c.trip=c.route=null;
     // veículo de serviço sai para a ronda (4 em 10 com a sirene ligada); os outros podem ter um novo destino
-    if(c.home){c.ronda=14+Math.random()*22;c.sirene=c.type!=='correio'&&Math.random()<.4}else if(Math.random()<.65)newTrip(c);return true}
+    if(c.home){c.ronda=c.type==='trio'?45+Math.random()*40:14+Math.random()*22;c.sirene=c.type!=='correio'&&c.type!=='trio'&&Math.random()<.4}else if(Math.random()<.65)newTrip(c);return true}
   const t=F.pts[0],p=c.m.position;
   // antes de entrar na rua: espera não ter carro perto do ponto de entrada (até 12 s; depois desiste e some)
   if(t.m&&F.mw!=null){const busy=cars.some(o=>o!==c&&!o.free&&Math.hypot(o.m.position.x-t.x,o.m.position.z-t.z)<.85);if(busy){F.mw+=dt;if(F.mw>12)return false;return true}}
@@ -4301,8 +4473,11 @@ function spawnPed(spot,role){const[i,dx,dz,a]=spot;role=role||pedRole(a)||'comum
   // anda ao longo da rua, com a construção do lado da calçada
   const cand=DIRS.map(([,x,z])=>[x,z]).filter(([x,z])=>(x!==dx||z!==dz)&&(x!==-dx||z!==-dz));const f=cand[Math.floor(Math.random()*cand.length)];
   const[rx,rz]=rightOf(f[0],f[1]);const s=isPath(i)?1:(rx===dx&&rz===dz)?1:-1;const[cx,cz]=tileC(i);const L=isPath(i)?PATH_LANE:laneOf(s);
-  const v=Math.floor(Math.random()*6);const m=getModel(`p:${role}:${v}:${MCTX.estilo}`,()=>personModel(role,mulberry(v*977+role.length*31+3)));scene.add(m);
-  const p={id:++pedId,m,role,tile:i,f,s,wp:[{x:cx+f[0]*.5+rx*L,z:cz+f[1]*.5+rz*L}],x:cx+rx*L,z:cz+rz*L,head:Math.atan2(f[0],f[1]),v:0,vmax:ROLES[role].v*(.9+Math.random()*.2),
+  const v=Math.floor(Math.random()*6);
+  // DEC-031: no Carnaval, quase metade dos moradores sai fantasiada
+  const folia=role==='comum'&&typeof EVT!=='undefined'&&EVT.atual==='carnaval'&&enfeitesOn()&&Math.random()<.45;
+  const m=folia?fantasiaDe(role,v,Math.floor(Math.random()*6)):getModel(`p:${role}:${v}:${MCTX.estilo}`,()=>personModel(role,mulberry(v*977+role.length*31+3)));scene.add(m);
+  const p={id:++pedId,m,role,folia,tile:i,f,s,wp:[{x:cx+f[0]*.5+rx*L,z:cz+f[1]*.5+rz*L}],x:cx+rx*L,z:cz+rz*L,head:Math.atan2(f[0],f[1]),v:0,vmax:ROLES[role].v*(.9+Math.random()*.2),
     life:35+Math.random()*60,ph:Math.random()*6,teimoso:Math.random()<.25,sigWait:0,stopped:0,holdSig:false,queued:false,yieldTo:-1,wait:0,cross:null,fade:0,limbs:{}};
   m.traverse(o=>{if(o.userData&&o.userData.limb)p.limbs[o.userData.limb]=o});m.position.set(p.x,0,p.z);m.rotation.y=p.head;m.scale.setScalar(.01);p.grow=0;peds.push(p);return p}
 function removePed(k){endVisit(peds[k]);scene.remove(peds[k].m);peds.splice(k,1)}
@@ -4742,7 +4917,7 @@ function priceOf(d){return Math.round(d.cost*(W?modeOf().custo:1))}
 // títulos: moradores e (nos altos) felicidade. presente = dinheiro da prefeitura ao subir
 const TITLES=[
   {id:'vila',nome:'Vila',pop:0,feliz:0,presente:0,
-    lib:'trilha estrada rua caminho pinheiro arvore ipe coqueiro arbusto flores lago aterro trigo milho horta girassol soja chale casa feira padaria cafe moinho turbina solar poste caixa banco praca parque playground celeiro galinheiro arvore_natal presepio feira_natal'},
+    lib:'trilha estrada rua caminho pinheiro arvore ipe coqueiro arbusto flores lago aterro trigo milho horta girassol soja chale casa feira padaria cafe moinho turbina solar poste caixa banco praca parque playground celeiro galinheiro arvore_natal presepio feira_natal trio_eletrico arquibancada barraca_fantasia'},
   {id:'povoado',nome:'Povoado',pop:200,feliz:0,presente:1000,
     lib:'sobrado mercado pizzaria sorveteria farmacia posto creche escola curral ovelhas estufa silos fonte coreto quadra estatua armazem serraria pomar cana vinhedo cafe_pe tulipas lavanda'},
   {id:'cidade_pequena',nome:'Cidade pequena',pop:600,feliz:0,presente:3000,
@@ -5886,7 +6061,7 @@ if(navigator.webdriver||/[?&]teste\b/.test(location.search)){
     placeAt,removeAt,cloudMat,updateHud,toast,SUN,SEASON,weatherNow,realSunEl,sunPos,brasilia,flushPaint,flushTerra,modelCache,objs,cars,boats,animals,orbitBy,tileSd,terrainHeightAt,
     camera,pickUp,dropAt,cancelCarry,rotateTool,previewAt,setTool,ghostRoot,arrow,toolV,keyFor,variantOf,canMoveTo,get reach(){return reach},
     renderer,tufts,PREV_MAX,TUFT_MAX,modelKey,SEASONS,seasonOf,brasiliaAt,clockText,dateText,isNight,genAt,prefs,updateLighting,resetNorth,EL_DEF,
-    setClock(ms){clockOverride=ms;_bCache=null;_rsT=-1e12;refreshSeason();checkSeasonVisuals();if(typeof checkEventos==='function'&&W)checkEventos();updateLighting(.016,0)},setWeather(k){weatherForce=k},popMoney,audioInit,THUMBS,ORDER,canPlace,planFor,applyBuild,hasRoadAccess,pops,prevMesh,musicTick,scheduleStep,buildMusicChain,news,cityIssues,checkIssues,doIssueAction,setTrayMin,get issuesNow(){return issuesNow},setIssueToasts(v){issueToastsOn=v},richToast,wpos,sun,machines,ducks,capys,butterflies,planes,harvestMachine,spawnDucks,spawnCapys,spawnButterflies,computeCropBonus,cropGrow,cropVal,industryRate,cityBoost,spinnersY,beams,CATS,computeStats,near,anchorOf,fpTiles,fitAt,isMulti,sizeOf,fixFootprints,buildLot,QROT,trains,barriers,closedX,airPlanes,ships,isRail,railInfo,railMask,railLink,stationTrack,lotTile,stationLinked,stationOnLoop,railFlowReverse,pathPoint,updateTransporte,manageTransport,forceAirplane,forceShip,portDock,cityIssues,fpSide,CATS,updateCars,cityBoost,trainReverse,placeTrain,peds,personModel,ROLES,waterTopMat,spawnCar,spawnParked,newTrip,lotSlots,lotTargets,carRoute,slotCar,lotBusy,frontRoad,carModel,updateAnimals,spawnPed,pedSpawnSpots,managePeds,updatePeds,updatePessoas,updateSignals,carLight,walkOk,isJunction,isSignal,signalLamps,pedCrossing,pedRoute,get sigT(){return sigT},sigSet,redLeft,onWalk,checkIssues,tryVisit,lotSeats,seatsTaken,bridgeProfile,bridgeRuns,bridgeH,bridgePart,deckLift,lowBridge,shipPath,shipChannel,shipLine,waterShore,wxSlot,WX_SLOT,spawnMudanca,cityEntrance,arrivalInfo,upgradeOf,doUpgrade,UPGRADE,nearPop,fpCenter,brazukaLogoMat,metroNear,arrivalsPerCycle,openObra,spawnEsp,manageEmergencia,animalGap,ANIMAL_SHAPE,sitPose,bench,mulberry,tube,addGente,chicken,personModel,cow,horse,sheep,ZOO_MAKE,roadModel,planeModel,shipModel,winMat,lampMat,tailMat,ESP,hasSlots,upgradeGain,brl,genAt,face,set sigT(v){sigT=v},refreshObj,forcePlane,EVT,eventoDe,checkEventos,setEvento,evtOff,updateEventos,luzMats,scene,objs,pascoaDia,fogos,updateVidaNova,cityList,saveCitySlot,deleteCity,loadCity,migrateCities,cityKey,newWorld,genWorld,WORLDS,WORLD_ORDER,weatherSeen,get booted(){return RV.booted},get fatal(){return RV.fatal},
+    setClock(ms){clockOverride=ms;_bCache=null;_rsT=-1e12;refreshSeason();checkSeasonVisuals();if(typeof checkEventos==='function'&&W)checkEventos();updateLighting(.016,0)},setWeather(k){weatherForce=k},popMoney,audioInit,THUMBS,ORDER,canPlace,planFor,applyBuild,hasRoadAccess,pops,prevMesh,musicTick,scheduleStep,buildMusicChain,news,cityIssues,checkIssues,doIssueAction,setTrayMin,get issuesNow(){return issuesNow},setIssueToasts(v){issueToastsOn=v},richToast,wpos,sun,machines,ducks,capys,butterflies,planes,harvestMachine,spawnDucks,spawnCapys,spawnButterflies,computeCropBonus,cropGrow,cropVal,industryRate,cityBoost,spinnersY,beams,CATS,computeStats,near,anchorOf,fpTiles,fitAt,isMulti,sizeOf,fixFootprints,buildLot,QROT,trains,barriers,closedX,airPlanes,ships,isRail,railInfo,railMask,railLink,stationTrack,lotTile,stationLinked,stationOnLoop,railFlowReverse,pathPoint,updateTransporte,manageTransport,forceAirplane,forceShip,portDock,cityIssues,fpSide,CATS,updateCars,cityBoost,trainReverse,placeTrain,peds,personModel,ROLES,waterTopMat,spawnCar,spawnParked,newTrip,lotSlots,lotTargets,carRoute,slotCar,lotBusy,frontRoad,carModel,updateAnimals,spawnPed,pedSpawnSpots,managePeds,updatePeds,updatePessoas,updateSignals,carLight,walkOk,isJunction,isSignal,signalLamps,pedCrossing,pedRoute,get sigT(){return sigT},sigSet,redLeft,onWalk,checkIssues,tryVisit,lotSeats,seatsTaken,bridgeProfile,bridgeRuns,bridgeH,bridgePart,deckLift,lowBridge,shipPath,shipChannel,shipLine,waterShore,wxSlot,WX_SLOT,spawnMudanca,cityEntrance,arrivalInfo,upgradeOf,doUpgrade,UPGRADE,nearPop,fpCenter,brazukaLogoMat,metroNear,arrivalsPerCycle,openObra,spawnEsp,manageEmergencia,animalGap,ANIMAL_SHAPE,sitPose,bench,mulberry,tube,addGente,chicken,personModel,cow,horse,sheep,ZOO_MAKE,roadModel,planeModel,shipModel,winMat,lampMat,tailMat,ESP,hasSlots,upgradeGain,brl,genAt,face,set sigT(v){sigT=v},refreshObj,forcePlane,EVT,eventoDe,checkEventos,setEvento,evtOff,updateEventos,luzMats,blocos,fantasiaDe,scene,objs,pascoaDia,fogos,updateVidaNova,cityList,saveCitySlot,deleteCity,loadCity,migrateCities,cityKey,newWorld,genWorld,WORLDS,WORLD_ORDER,weatherSeen,get booted(){return RV.booted},get fatal(){return RV.fatal},
     ECON,MODES,TITLES,GOALS,TIER,unlocked,tierOf,titleForPop,titleNeed,progressTick,priceOf,modeOf,lockText,
     groundAt,get landSel(){return landSel},closePanel,OFF,START,BLK,NBK,I0,LAND,owned,blockOf,startOwn,buyLand,landPrice,landState,landInfo,landRing,refreshLand,openLand,landSigns,landVeil,ownedBounds,genOuter,
     tut,TUT_PASSOS,tutStart,tutStop,tutTick,tutConclui,tutNaNova,tutLugar,genMap,MCTX,ESTILOS,modeloDe,panelKind:()=>panelKind,openPanel,
