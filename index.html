@@ -2536,9 +2536,9 @@ function eventoDe(b){const md=b.mo*100+b.d,dia=Math.round(Date.UTC(b.y,b.mo-1,b.
   if(b.mo===6)return'junina';return null}
 // Réveillon: da 23h de 31/12 até 1h de 1º/1
 const reveillonDe=b=>b.mo===12&&b.d===31&&b.h>=23||b.mo===1&&b.d===1&&b.h<1;
-const EVENTOS={natal:{n:'Natal',dica:'A cidade se enfeitou sozinha. Árvore gigante, presépio e feira de Natal estão na bandeja até 6 de janeiro.'},
-  carnaval:{n:'Carnaval',dica:'Bloco na rua! As construções de Carnaval ficam na bandeja até a Quarta-feira de Cinzas.'},
-  junina:{n:'Festa Junina',dica:'Bandeirinhas na rua e arraiá liberado durante junho.'}};
+const EVENTOS={natal:{n:'Natal',art:'o',dica:'A cidade se enfeitou sozinha. Árvore gigante, presépio e feira de Natal estão na bandeja até 6 de janeiro.'},
+  carnaval:{n:'Carnaval',art:'o',dica:'Bloco na rua! As construções de Carnaval ficam na bandeja até a Quarta-feira de Cinzas.'},
+  junina:{n:'Festa Junina',art:'a',dica:'Bandeirinhas na rua e arraiá liberado durante junho.'}};
 const EVT={atual:null,reveillon:false};
 // testes: setEvento('natal') força uma festa, setEvento('nenhum') desliga e setEvento() volta ao relógio (os testes antigos abrem com 'nenhum')
 let evtForce=typeof window!=='undefined'&&window.__RV_EVT||undefined;
@@ -2562,7 +2562,7 @@ function updateEventos(dt,clock){const lb=typeof litBlend==='number'?litBlend:0;
   // fora da festa, as construções de época ficam apagadas
   const on=!!EVT.atual;luzMats.forEach((m,k)=>m.emissiveIntensity=on?.22+lb*(k%2===t?1.25:.55):0);
   const px=pxUnid();luzPts.forEach((m,k)=>{m.size=Math.max(1.5,(.028+lb*.022)*px);m.opacity=.75+lb*(k===t?.25:-.2)});
-  updateFogos(dt);updateBlocos(dt,_evtBlink)}
+  updateFogos(dt);updateBlocos(dt,_evtBlink);updateChamas(dt)}
 
 /* ---------- enfeite automático nas construções ---------- */
 // ruas que ganham enfeite (a de terra fica sem)
@@ -2609,6 +2609,7 @@ function varalRua(i,d,inner){if(!d.road||!RUA_ENF.has(d.road.kind)||d.rail)retur
   inner.add(g)}
 function decorEvento(i,st,d,inner){if(!EVT.atual||!enfeitesOn()||d.evento)return;
   if(EVT.atual==='carnaval'){decorCarnaval(i,st,d,inner);return}
+  if(EVT.atual==='junina'){decorJunina(i,st,d,inner);return}
   if(EVT.atual==='natal'){
     if(d.road){varalRua(i,d,inner);return}
     if(!ENFEITE_CATS.has(d.cat))return;
@@ -2623,7 +2624,7 @@ function checkEventos(force){const b=brasilia(),e=festaDe(b);EVT.reveillon=e==='
   if(!force&&sig===_evtSig)return false;const antes=EVT.atual;EVT.atual=e;_evtSig=sig;_decCache.clear();
   if(typeof W!=='undefined'&&W&&W.b)for(let i=0;i<N*N;i++)if(W.b[i]&&!isNatureId(W.b[i].id)&&(!ITEMS[W.b[i].id].road||RUA_ENF.has(ITEMS[W.b[i].id].road.kind)))refreshObj(i,false);
   if(typeof renderItems==='function'&&typeof game!=='undefined'&&game.active){if(game.tool.mode==='build'&&game.tool.item&&evtOff(ITEMS[game.tool.item]))setTool('look');renderItems()}
-  if(antes!==e&&e&&typeof game!=='undefined'&&game.active&&typeof news==='function')news(`Começou o ${EVENTOS[e].n}! ${EVENTOS[e].dica}`);
+  if(antes!==e&&e&&typeof game!=='undefined'&&game.active&&typeof news==='function')news(`Começou ${EVENTOS[e].art} ${EVENTOS[e].n}! ${EVENTOS[e].dica}`);
   return true}
 
 /* ---------- fogos do Réveillon ---------- */
@@ -2916,6 +2917,132 @@ def('barraca_fantasia',{cat:'lazer',name:'Barraca de fantasias',cost:400,shop:12
     RB(g,.6,.12,.14,'#9a6b45',0,.03,.2,.008);for(let k=0;k<4;k++){part(_cone10,FOLIA[k+1],.05,.06,.05,-.2+k*.13,.15,.2,g);S(g,.012,'#f6c02c',-.2+k*.13,.215,.2)}
     for(let k=0;k<4;k++)mascara(g,-.27+k*.18,.36,.3,.09,['#d9a830','#2f7fd6','#e8343c','#2f9e5a'][k]);
     sombrinha(g,.36,.5,.3,.8,1);
+    return g}});
+
+/* ================= Festa Junina (v0.23.0) ================= */
+const JUNINA=['#e8343c','#f6c02c','#2f9e5a','#2f7fd6','#ff8a2a','#c53fa6','#f4f1ea'];
+// bandeirinhas de São João: retângulos de papel com o corte em V embaixo, penduradas no cordão
+function triBand(pts,seed,cores,w=.034,h=.05){const tri=[],col=[];
+  for(let k=0;k<pts.length-1;k++){const a=pts[k],b=pts[k+1],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,mz=(a[2]+b[2])/2,dx=b[0]-a[0],dz=b[2]-a[2],L=Math.hypot(dx,dz)||1,ux=dx/L*w/2,uz=dz/L*w/2;
+    const tl=[mx-ux,my,mz-uz],tr=[mx+ux,my,mz+uz],bl=[mx-ux,my-h,mz-uz],br=[mx+ux,my-h,mz+uz],nv=[mx,my-h*.7,mz],c=cores[(k+seed)%cores.length];
+    for(const t of[[tl,tr,nv],[tl,nv,bl],[tr,br,nv]]){tri.push(...t[0],...t[1],...t[2]);col.push(c)}}
+  return{tri,col}}
+function bandeirinhas(pts,seed){const{tri,col}=triBand(pts,seed,JUNINA),pos=[],cc=[],c=new THREE.Color();col.forEach((k,j)=>{c.set(k);for(let v=0;v<3;v++)cc.push(c.r,c.g,c.b)});
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(tri,3));geo.setAttribute('color',new THREE.Float32BufferAttribute(cc,3));geo.computeVertexNormals();const m=new THREE.Mesh(geo,bandMat);m.userData.decor=1;m.castShadow=true;return m}
+// nas construções, quatro cores (cada cor é uma malha)
+function bandeirinhasM(g,pts,seed){const{tri,col}=triBand(pts,seed,['#e8343c','#f6c02c','#2f9e5a','#2f7fd6']);porCor(tri,col,g)}
+
+// enfeite automático da Festa Junina: bandeirinhas nas casas e no comércio e muitos cordões cruzando as ruas
+function decorJunina(i,st,d,inner){
+  if(d.road){if(!RUA_ENF.has(d.road.kind)||d.rail)return;const x=i%N,z=Math.floor(i/N);if((x+z)%2)return;
+    const ex=isRoad(nbr(i,1,0))&&isRoad(nbr(i,-1,0)),ez=isRoad(nbr(i,0,1))&&isRoad(nbr(i,0,-1));if(ex===ez)return;
+    const g=new THREE.Group();g.userData.decor=1;const P=(u,v)=>ex?[u,0,v]:[v,0,u];
+    for(const p of[P(-.25,-.47),P(.25,.47),P(.25,-.47),P(-.25,.47)])rod(g,[p[0],0,p[2]],[p[0],.48,p[2]],.007,'#7a5434');
+    g.add(bandeirinhas(cordao(P(-.25,-.47),P(-.25,.47),.47,.06,.045),x));g.add(bandeirinhas(cordao(P(.25,-.47),P(.25,.47),.47,.06,.045),x+2));
+    g.add(bandeirinhas(cordao(P(-.25,-.47),P(.25,.47),.46,.07,.045),x+4));g.add(bandeirinhas(cordao(P(.25,-.47),P(-.25,.47),.46,.07,.045),x+1));
+    inner.add(g);return}
+  if(d.cat!=='moradias'&&d.cat!=='comercio')return;
+  const key=modelKey(i);let m=_decCache.get(key);if(m===undefined){m=medidaPredio(inner,st.id);_decCache.set(key,m)}if(!m)return;
+  const g=new THREE.Group();g.userData.decor=1;const alto=m.top>1.25,h=alto?Math.min(m.top,.62):clamp(m.top*.62,.2,.48),e=.025,X0=m.x0-e,X1=m.x1+e,Z0=m.z0-e,Z1=m.z1+e;
+  const lados=!alto?[[X0,Z1,X1,Z1],[X1,Z1,X1,Z0],[X1,Z0,X0,Z0],[X0,Z0,X0,Z1]]:[[X0,Z1,X1,Z1]];
+  lados.forEach(([ax,az,bx,bz],k)=>g.add(bandeirinhas(cordao([ax,0,az],[bx,0,bz],h,.03,.04),i+k*3)));
+  // na frente, um segundo cordão mais baixo em V até o meio
+  g.add(bandeirinhas(cordao([X0,0,Z1+.01],[(X0+X1)/2,0,Z1+.01],h-.04,.02,.04),i+1));g.add(bandeirinhas(cordao([(X0+X1)/2,0,Z1+.01],[X1,0,Z1+.01],h-.04,.02,.04),i+5));
+  inner.add(g)}
+
+// roupa caipira dos moradores: chapéu de palha sempre; camisa xadrez com remendo, lenço, vestido de chita, bigode pintado
+function caipira(g,k,r){
+  // chapéu de palha com aba larga e fita
+  C(g,.07,.008,.07,'#e3c46a',0,.162,0);part(_cone10,'#d9b85a',.046,.035,.046,0,.168,0,g);C(g,.047,.008,.047,'#c8302a',0,.17,0);
+  switch(k%4){
+    case 0:for(let j=0;j<4;j++)B(g,.064,.006,.004,'#c8302a',0,.09+j*.014,.021);for(let j=0;j<3;j++)B(g,.004,.05,.004,'#c8302a',-.02+j*.02,.1,.021);B(g,.018,.018,.004,'#2f7fd6',.012,.06,.02);B(g,.012,.004,.004,'#2b2018',0,.133,.026);break;
+    case 1:{part(_cone10,pick(r,['#e8343c','#2f7fd6','#f6c02c','#2f9e5a']),.11,.07,.1,0,.03,0,g);for(let j=0;j<10;j++){const a=j*1.9;S(g,.008,j%2?'#f4f1ea':'#ff8ac0',Math.cos(a)*.045,.05+(j%3)*.012,Math.sin(a)*.04)}for(const s of[-1,1])S(g,.016,'#2b2018',s*.03,.146,-.01);break}
+    case 2:B(g,.03,.014,.024,'#c8302a',0,.118,.018).rotation.z=.78;for(let j=0;j<3;j++)B(g,.066,.006,.004,'#2f7fd6',0,.095+j*.016,.021);B(g,.012,.004,.004,'#2b2018',0,.133,.026);break;
+    case 3:{part(_cone10,'#f6c02c',.11,.07,.1,0,.03,0,g);for(let j=0;j<10;j++){const a=j*1.7;S(g,.009,j%2?'#e8343c':'#2f9e5a',Math.cos(a)*.046,.045+(j%3)*.014,Math.sin(a)*.042)}B(g,.02,.02,.004,'#c8302a',-.015,.1,.022);break}}
+  return g}
+const caipiraDe=(role,v,k)=>getModel(`p:${role}:${v}:${MCTX.estilo}:j${k}`,()=>caipira(personModel(role,mulberry(v*977+role.length*31+3)),k,mulberry(k*17+v)));
+
+// fogueira: toras em pirâmide com as chamas (giram devagar e tremem; apagam fora da festa; mais altas na noite de São João)
+const chamaMats=[new THREE.MeshBasicMaterial({color:'#ffb02e'}),new THREE.MeshBasicMaterial({color:'#ff6a1a'}),new THREE.MeshBasicMaterial({color:'#ffe27a'})];
+function fogueira(g,x,z,s=1){for(let k=0;k<10;k++){const a=k/10*Math.PI*2;S(g,.05*s,'#8a8580',x+Math.cos(a)*.13*s,0,z+Math.sin(a)*.13*s)}
+  for(let k=0;k<6;k++){const a=k/6*Math.PI*2,t=rod(g,[x+Math.cos(a)*.11*s,.02,z+Math.sin(a)*.11*s],[x+Math.cos(a)*.01*s,.2*s,z+Math.sin(a)*.01*s],.016*s,'#6e4b33')}
+  C(g,.14*s,.03*s,.14*s,'#3b3530',x,.01,z);
+  const f=new THREE.Group();f.position.set(x,.04,z);f.userData.dyn=1;f.userData.spinY=1.7;f.userData.chama=s;g.add(f);
+  // labaredas: várias línguas finas em volta e uma mais alta no meio, de três tons
+  [[.07,.17,0,0,2],[.05,.12,.04,0,1],[.05,.11,-.035,.02,1],[.04,.1,.01,.04,1],[.045,.13,.02,-.035,1],[.035,.08,-.03,-.03,2],[.03,.09,.045,.03,1]].forEach(([w,h,ox,oz,m])=>{const c=new THREE.Mesh(_cone10,chamaMats[m]);c.scale.set(w*s,h*s,w*s);c.position.set(ox*s,h*s/2,oz*s);f.add(c)});
+  return f}
+let _chamaT=0;
+function updateChamas(dt){_chamaT+=dt;if(typeof objs==='undefined'||!W)return;const off=evtOff({evento:'junina'}),sj=!off&&(()=>{const b=brasilia();return b.mo===6&&(b.d===23||b.d===24)})();
+  for(const id of['arraia','fogueira_sj']){const L=_porItem(id);for(const o of L)o.traverse(c=>{if(c.userData.festa)c.visible=!off;if(!c.userData.chama)return;c.visible=!off;c.userData.alt=sj?1.3:1;const k=c.userData.alt*(1+Math.sin(_chamaT*11+c.id)*.08);c.scale.set(k,k*(1+Math.sin(_chamaT*17+c.id)*.12),k)})}}
+const _porItemCache={t:-1,map:new Map()};
+function _porItem(id){if(_porItemCache.t<_chamaT-1){_porItemCache.t=_chamaT;_porItemCache.map.clear();for(let i=0;i<N*N;i++){const s=W.b[i];if(s&&(s.id==='arraia'||s.id==='fogueira_sj')&&objs[i]){const L=_porItemCache.map.get(s.id)||[];L.push(objs[i]);_porItemCache.map.set(s.id,L)}}}return _porItemCache.map.get(id)||[]}
+// no Nordeste o São João é maior: o arraiá rende 50% a mais por dia
+const fatorDiaria=s=>s&&s.id==='arraia'&&W&&W.estilo==='nordeste'?1.5:1;
+// fardo de palha
+const fardo=(g,x,z,ry=0)=>{const b=RB(g,.16,.08,.09,'#e3c46a',x,.03,z,.01);b.rotation.y=ry;for(const s of[-1,1])B(g,.162,.006,.004,'#a8843a',x,.07,z+s*.03).rotation.y=ry;return b};
+// dançarinos da quadrilha: par de peças simples (ele de xadrez e chapéu, ela de vestido de chita)
+// (poucas cores: a roda inteira vira poucas malhas)
+function parQuadrilha(g,x,z,ry,k){const p=new THREE.Group();p.position.set(x,0,z);p.rotation.y=ry;g.add(p);const pele=k%2?'#8a5a3a':'#c98e62';
+  // ele: calça, camisa xadrez vermelha e chapéu de palha
+  for(const s of[-1,1])C(p,.012,.05,.012,'#2f4a73',-.035+s*.008,.03,0);K(p,.035,.055,.03,'#c8302a',-.035,.08,0);S(p,.028,pele,-.035,.135,0);C(p,.06,.006,.06,'#e3c46a',-.035,.158,0);part(_cone10,'#e3c46a',.035,.026,.035,-.035,.163,0,p);
+  // ela: vestido de chita amarelo, blusa branca e maria-chiquinha
+  part(_cone10,'#f6c02c',.07,.08,.065,.035,.03,0,p);K(p,.03,.04,.026,'#f4f1ea',.035,.1,0);S(p,.026,pele,.035,.14,0);for(const s of[-1,1])S(p,.014,'#2b2018',.035+s*.018,.15,-.004);
+  B(p,.04,.008,.008,pele,0,.1,.012);return p}
+// Arraiá: terreiro 3×3 com a fogueira no meio, quadrilha dançando em roda, mastro de São João, barracas, forró no palco e bandeirinhas
+def('arraia',{cat:'lazer',name:'Arraiá',cost:1500,happy:12,daily:60,energy:2,needsRoad:true,evento:'junina',
+  desc:'O arraial da Festa Junina: fogueira, quadrilha em roda, mastro de São João, barracas de pescaria, milho e quentão, e forró no palco. Só em junho. No Nordeste, onde o São João é maior, rende mais.',
+  make(r){const g=new THREE.Group();RB(g,2.86,.03,2.86,'#c9a46a',0,0,0,.03);C(g,2,.012,2,'#d8b67c',0,.03,0);
+    // portal de bambu na entrada
+    for(const s of[-1,1])C(g,.04,.62,.04,'#b89a5a',s*.4,.03,1.36);B(g,.9,.04,.04,'#b89a5a',0,.62,1.36);B(g,.62,.1,.03,'#f6c02c',0,.52,1.37);for(let k=0;k<6;k++)B(g,.08,.06,.035,JUNINA[k],-.25+k*.1,.52,1.38);
+    fogueira(g,0,0,1.6);
+    // quadrilha: oito pares em roda em volta da fogueira (a roda gira)
+    const roda=new THREE.Group();roda.userData.dyn=1;roda.userData.spinY=.28;roda.userData.festa=1;g.add(roda);for(let k=0;k<8;k++){const a=k/8*Math.PI*2;parQuadrilha(roda,Math.cos(a)*.62,Math.sin(a)*.62,-a,k)}
+    // mastro de São João com a bandeira dos santos e fitas
+    C(g,.03,1.1,.03,'#b89a5a',-1.05,.03,-1.05);B(g,.14,.12,.012,'#f4f1ea',-.98,1.02,-1.05);S(g,.04,'#2f7fd6',-.98,1.03,-1.043);S(g,.034,'#e8343c',-.96,1.06,-1.043);
+    // bandeirinhas do mastro até os cantos e em volta
+    const topo=[-1.05,1.08,-1.05],cantos=[[1.36,1.36],[-1.36,1.36],[1.36,-1.36]];for(const[x,z]of cantos)C(g,.03,.6,.03,'#b89a5a',x,.03,z);
+    cantos.forEach(([x,z],k)=>bandeirinhasM(g,cordao(topo,[x,0,z],1.08,.1,.05).map((p,j,a)=>[p[0],1.08-(1.08-.6)*(j/(a.length-1))-.08*Math.sin(Math.PI*j/(a.length-1)),p[2]]),k*2));
+    bandeirinhasM(g,cordao([-1.36,0,1.36],[1.36,0,1.36],.6,.06,.05),1);bandeirinhasM(g,cordao([1.36,0,-1.36],[1.36,0,1.36],.6,.06,.05),3);
+    // barracas do fundo: pescaria, milho e quentão
+    const barr=(x,c1,c2,f)=>{RB(g,.44,.14,.24,'#9a6b45',x,.03,-1.12,.008);for(const s of[-1,1])for(const zz of[-1.22,-1.02])C(g,.018,.4,.018,'#7a5434',x+s*.2,.03,zz);for(let k=0;k<6;k++){const t=B(g,.078,.012,.3,k%2?c1:c2,x-.2+k*.078,.44,-1.1);t.rotation.x=-.25}f(x)};
+    barr(.15,'#2f7fd6','#f4f1ea',x=>{B(g,.32,.04,.16,'#3f9fd6',x,.17,-1.12);for(let k=0;k<5;k++)S(g,.03,'#f6c02c',x-.12+k*.06,.2,-1.12+(k%2)*.04);for(const s of[-1,1])rod(g,[x+s*.1,.2,-1.0],[x+s*.13,.34,-.92],.004,'#7a5434')});
+    barr(.68,'#2f9e5a','#f6c02c',x=>{C(g,.12,.08,.12,'#3b3f43',x-.08,.17,-1.12);for(let k=0;k<6;k++){const m=C(g,.022,.08,.022,'#f2c230',x+.05+(k%3)*.035,.17,-1.15+Math.floor(k/3)*.05);m.rotation.z=.4}});
+    barr(1.12,'#e8343c','#f4f1ea',x=>{C(g,.14,.1,.14,'#8a8580',x,.17,-1.12);C(g,.13,.012,.13,'#7a2a24',x,.27,-1.12);for(let k=0;k<4;k++)C(g,.025,.035,.025,'#f4f1ea',x-.1+k*.065,.17,-1.0)});
+    // palco do forró com sanfoneiro, zabumba e triângulo
+    RB(g,.6,.1,.4,'#9a6b45',-1.0,.03,.2,.01);for(let k=0;k<3;k++){const x=-1.18+k*.18;K(g,.04,.06,.035,['#c8302a','#2f7fd6','#f6c02c'][k],x,.13,.2);S(g,.03,['#8a5a3a','#c98e62','#6b4430'][k],x,.19,.2);C(g,.06,.007,.06,'#e3c46a',x,.22,.2);part(_cone10,'#d9b85a',.035,.025,.035,x,.225,.2,g)}
+    B(g,.06,.05,.03,'#c8302a',-1.18,.15,.24);C(g,.06,.04,.06,'#f4f1ea',-1.0,.14,.24).rotation.x=Math.PI/2;const tr=K(g,.04,.04,.004,'#c9ccd2',-.82,.17,.24);
+    // fardos de palha para sentar e cordão de lâmpadas
+    for(const[x,z,ry]of[[.95,.5,0],[.95,.8,0],[.7,1.05,Math.PI/2],[-.6,1.05,Math.PI/2],[-.35,-.9,0]])fardo(g,x,z,ry);
+    for(let k=0;k<26;k++){const u=k/25;bulb(g,-1.36+2.72*u,.56-.06*Math.sin(Math.PI*u),1.36,k%2,.014)}
+    return g}});
+lote('arraia',{size:[3,3],fill:'gramado',max:1});
+// Fogueira de São João: roda de pedras com a fogueira, bancos de tora, gente se esquentando e milho assando
+def('fogueira_sj',{cat:'lazer',name:'Fogueira de São João',cost:300,happy:4,daily:12,evento:'junina',
+  desc:'Fogueira com bancos de tora e milho assando. Só em junho; na noite de São João (23 para 24) as chamas ficam mais altas. Felicidade +4.',
+  make(r){const g=new THREE.Group();RB(g,.94,.03,.94,'#c9a46a',0,0,0,.02);fogueira(g,0,0,1);
+    for(let k=0;k<4;k++){const a=k/4*Math.PI*2+.4;const t=CX(g,.22,.035,'#7a5434',Math.cos(a)*.3,.065,Math.sin(a)*.3,'x');t.rotation.y=-a+Math.PI/2}
+    sentado(g,.3,.09,.12,'#c8302a','#c98e62',false);sentado(g,-.25,.09,.22,'#2f7fd6','#8a5a3a',false);
+    // espeto com milho
+    for(const s of[-1,1])C(g,.008,.12,.008,'#6e4b33',s*.14,.03,-.12);rod(g,[-.14,.14,-.12],[.14,.14,-.12],.004,'#555');for(let k=0;k<3;k++){const m=C(g,.02,.06,.02,'#f2c230',-.06+k*.06,.13,-.12);m.rotation.z=Math.PI/2}
+    for(const[x,z]of[[-.44,-.44],[.44,-.44],[-.44,.44],[.44,.44]])C(g,.016,.42,.016,'#7a5434',x,.03,z);
+    bandeirinhasM(g,cordao([-.44,0,.44],[.44,0,.44],.44,.05,.045),0);bandeirinhasM(g,cordao([-.44,0,-.44],[.44,0,-.44],.44,.05,.045),3);bandeirinhasM(g,cordao([-.44,0,-.44],[-.44,0,.44],.44,.05,.045),5);
+    return g}});
+// Barraca de comidas típicas: pamonha, milho cozido, paçoca, pé de moleque, canjica e quentão
+def('barraca_junina',{cat:'lazer',name:'Barraca de comidas típicas',cost:450,shop:130,needsRoad:true,happy:3,evento:'junina',
+  desc:'Pamonha, milho cozido, paçoca, pé de moleque, canjica e quentão. Só em junho. Vende como comércio enquanto a festa dura.',
+  make(r){const g=new THREE.Group();RB(g,.94,.03,.94,'#ddd4c2',0,0,0,.01);
+    for(const x of[-.36,.36])for(const z of[-.28,.24])C(g,.022,.44,.022,'#7a5434',x,.03,z);
+    // toldo de chita: fundo colorido com florzinhas
+    for(let k=0;k<8;k++){const t=B(g,.1,.012,.6,k%2?'#e8343c':'#f6c02c',-.35+k*.1,.48,-.02);t.rotation.x=-.12}for(let k=0;k<16;k++)S(g,.016,k%2?'#2f9e5a':'#f4f1ea',-.34+(k%8)*.1,.495,-.2+Math.floor(k/8)*.3);
+    RB(g,.66,.13,.18,'#9a6b45',0,.03,.18,.008);B(g,.66,.04,.01,'#2f9e5a',0,.12,.275);
+    // no balcão: pamonhas, milho, paçoca, pé de moleque
+    for(let k=0;k<4;k++)RB(g,.05,.025,.03,'#7fae4a',-.26+k*.055,.16,.15,.01);for(let k=0;k<3;k++){const m=C(g,.022,.07,.022,'#f2c230',-.02+k*.04,.17,.2);m.rotation.z=Math.PI/2}
+    for(let k=0;k<4;k++)B(g,.03,.012,.03,'#c9884a',.14+(k%2)*.04,.16+Math.floor(k/2)*.013,.14);for(let k=0;k<3;k++)B(g,.034,.012,.026,'#8a5a2a',.24,.16,.12+k*.034);
+    // panelas de canjica e de quentão (no fogareiro)
+    C(g,.12,.08,.12,'#3b3f43',-.2,.03,-.16);C(g,.11,.08,.11,'#c9ccd2',-.2,.11,-.16);C(g,.1,.008,.1,'#f4ecd6',-.2,.19,-.16);
+    C(g,.1,.07,.1,'#8a8580',.12,.03,-.16);C(g,.1,.1,.1,'#7a2a24',.12,.1,-.16);C(g,.09,.008,.09,'#a8402a',.12,.2,-.16);
+    for(let k=0;k<5;k++)C(g,.022,.03,.022,'#f4f1ea',-.26+k*.06,.16,.22);
+    bandeirinhasM(g,cordao([-.36,0,.25],[.36,0,.25],.42,.04,.04),2);
     return g}});
 
 /* ---- js/04-mundo.js ---- */
@@ -4474,9 +4601,9 @@ function spawnPed(spot,role){const[i,dx,dz,a]=spot;role=role||pedRole(a)||'comum
   const cand=DIRS.map(([,x,z])=>[x,z]).filter(([x,z])=>(x!==dx||z!==dz)&&(x!==-dx||z!==-dz));const f=cand[Math.floor(Math.random()*cand.length)];
   const[rx,rz]=rightOf(f[0],f[1]);const s=isPath(i)?1:(rx===dx&&rz===dz)?1:-1;const[cx,cz]=tileC(i);const L=isPath(i)?PATH_LANE:laneOf(s);
   const v=Math.floor(Math.random()*6);
-  // DEC-031: no Carnaval, quase metade dos moradores sai fantasiada
-  const folia=role==='comum'&&typeof EVT!=='undefined'&&EVT.atual==='carnaval'&&enfeitesOn()&&Math.random()<.45;
-  const m=folia?fantasiaDe(role,v,Math.floor(Math.random()*6)):getModel(`p:${role}:${v}:${MCTX.estilo}`,()=>personModel(role,mulberry(v*977+role.length*31+3)));scene.add(m);
+  // DEC-031: no Carnaval quase metade dos moradores sai fantasiada; na Festa Junina, metade sai de roupa caipira
+  const folia=role==='comum'&&typeof EVT!=='undefined'&&(EVT.atual==='carnaval'||EVT.atual==='junina')&&enfeitesOn()&&Math.random()<(EVT.atual==='junina'?.5:.45);
+  const m=folia?(EVT.atual==='junina'?caipiraDe(role,v,Math.floor(Math.random()*4)):fantasiaDe(role,v,Math.floor(Math.random()*6))):getModel(`p:${role}:${v}:${MCTX.estilo}`,()=>personModel(role,mulberry(v*977+role.length*31+3)));scene.add(m);
   const p={id:++pedId,m,role,folia,tile:i,f,s,wp:[{x:cx+f[0]*.5+rx*L,z:cz+f[1]*.5+rz*L}],x:cx+rx*L,z:cz+rz*L,head:Math.atan2(f[0],f[1]),v:0,vmax:ROLES[role].v*(.9+Math.random()*.2),
     life:35+Math.random()*60,ph:Math.random()*6,teimoso:Math.random()<.25,sigWait:0,stopped:0,holdSig:false,queued:false,yieldTo:-1,wait:0,cross:null,fade:0,limbs:{}};
   m.traverse(o=>{if(o.userData&&o.userData.limb)p.limbs[o.userData.limb]=o});m.position.set(p.x,0,p.z);m.rotation.y=p.head;m.scale.setScalar(.01);p.grow=0;peds.push(p);return p}
@@ -4862,7 +4989,9 @@ function hourTick(){
   // sobra para o próximo ciclo só um pouco (quem não achou casa neste ciclo não se acumula sem fim)
   W._arrAcc=Math.min(arrB,3);
   const tax=st.pop*ECON.tax*RK;W.money+=tax;earned+=tax;
-  if(cyc>0&&cyc%24===0){let daily=0,upkeep=0;for(let i=0;i<N*N;i++){const s=W.b[i];if(!s)continue;const d=ITEMS[s.id];if(d.daily&&!evtOff(d)){const v=Math.round(d.daily*ECON.daily*RK);W.money+=v;daily+=v;popMoney(i,v)}
+  if(cyc>0&&cyc%24===0){let daily=0,upkeep=0;for(let i=0;i<N*N;i++){const s=W.b[i];if(!s)continue;const d=ITEMS[s.id];if(d.daily&&!evtOff(d)){
+      // DEC-031: no Nordeste o São João é maior: o arraiá rende 50% a mais
+      const v=Math.round(d.daily*ECON.daily*RK*fatorDiaria(s));W.money+=v;daily+=v;popMoney(i,v)}
       // DEC-013: manutenção cresce com a cidade e as vias passam a custar por dia
       if(d.upkeep){const u=d.upkeep*ECON.up*MO.manut*Math.min(1+ECON.upPop*st.pop,ECON.upMax);W.money-=u;upkeep+=u}const vu=ECON.via[s.id];if(vu){W.money-=vu*MO.manut;upkeep+=vu*MO.manut}}
     upkeep=Math.round(upkeep);
@@ -4917,7 +5046,7 @@ function priceOf(d){return Math.round(d.cost*(W?modeOf().custo:1))}
 // títulos: moradores e (nos altos) felicidade. presente = dinheiro da prefeitura ao subir
 const TITLES=[
   {id:'vila',nome:'Vila',pop:0,feliz:0,presente:0,
-    lib:'trilha estrada rua caminho pinheiro arvore ipe coqueiro arbusto flores lago aterro trigo milho horta girassol soja chale casa feira padaria cafe moinho turbina solar poste caixa banco praca parque playground celeiro galinheiro arvore_natal presepio feira_natal trio_eletrico arquibancada barraca_fantasia'},
+    lib:'trilha estrada rua caminho pinheiro arvore ipe coqueiro arbusto flores lago aterro trigo milho horta girassol soja chale casa feira padaria cafe moinho turbina solar poste caixa banco praca parque playground celeiro galinheiro arvore_natal presepio feira_natal trio_eletrico arquibancada barraca_fantasia arraia fogueira_sj barraca_junina'},
   {id:'povoado',nome:'Povoado',pop:200,feliz:0,presente:1000,
     lib:'sobrado mercado pizzaria sorveteria farmacia posto creche escola curral ovelhas estufa silos fonte coreto quadra estatua armazem serraria pomar cana vinhedo cafe_pe tulipas lavanda'},
   {id:'cidade_pequena',nome:'Cidade pequena',pop:600,feliz:0,presente:3000,
@@ -6061,7 +6190,7 @@ if(navigator.webdriver||/[?&]teste\b/.test(location.search)){
     placeAt,removeAt,cloudMat,updateHud,toast,SUN,SEASON,weatherNow,realSunEl,sunPos,brasilia,flushPaint,flushTerra,modelCache,objs,cars,boats,animals,orbitBy,tileSd,terrainHeightAt,
     camera,pickUp,dropAt,cancelCarry,rotateTool,previewAt,setTool,ghostRoot,arrow,toolV,keyFor,variantOf,canMoveTo,get reach(){return reach},
     renderer,tufts,PREV_MAX,TUFT_MAX,modelKey,SEASONS,seasonOf,brasiliaAt,clockText,dateText,isNight,genAt,prefs,updateLighting,resetNorth,EL_DEF,
-    setClock(ms){clockOverride=ms;_bCache=null;_rsT=-1e12;refreshSeason();checkSeasonVisuals();if(typeof checkEventos==='function'&&W)checkEventos();updateLighting(.016,0)},setWeather(k){weatherForce=k},popMoney,audioInit,THUMBS,ORDER,canPlace,planFor,applyBuild,hasRoadAccess,pops,prevMesh,musicTick,scheduleStep,buildMusicChain,news,cityIssues,checkIssues,doIssueAction,setTrayMin,get issuesNow(){return issuesNow},setIssueToasts(v){issueToastsOn=v},richToast,wpos,sun,machines,ducks,capys,butterflies,planes,harvestMachine,spawnDucks,spawnCapys,spawnButterflies,computeCropBonus,cropGrow,cropVal,industryRate,cityBoost,spinnersY,beams,CATS,computeStats,near,anchorOf,fpTiles,fitAt,isMulti,sizeOf,fixFootprints,buildLot,QROT,trains,barriers,closedX,airPlanes,ships,isRail,railInfo,railMask,railLink,stationTrack,lotTile,stationLinked,stationOnLoop,railFlowReverse,pathPoint,updateTransporte,manageTransport,forceAirplane,forceShip,portDock,cityIssues,fpSide,CATS,updateCars,cityBoost,trainReverse,placeTrain,peds,personModel,ROLES,waterTopMat,spawnCar,spawnParked,newTrip,lotSlots,lotTargets,carRoute,slotCar,lotBusy,frontRoad,carModel,updateAnimals,spawnPed,pedSpawnSpots,managePeds,updatePeds,updatePessoas,updateSignals,carLight,walkOk,isJunction,isSignal,signalLamps,pedCrossing,pedRoute,get sigT(){return sigT},sigSet,redLeft,onWalk,checkIssues,tryVisit,lotSeats,seatsTaken,bridgeProfile,bridgeRuns,bridgeH,bridgePart,deckLift,lowBridge,shipPath,shipChannel,shipLine,waterShore,wxSlot,WX_SLOT,spawnMudanca,cityEntrance,arrivalInfo,upgradeOf,doUpgrade,UPGRADE,nearPop,fpCenter,brazukaLogoMat,metroNear,arrivalsPerCycle,openObra,spawnEsp,manageEmergencia,animalGap,ANIMAL_SHAPE,sitPose,bench,mulberry,tube,addGente,chicken,personModel,cow,horse,sheep,ZOO_MAKE,roadModel,planeModel,shipModel,winMat,lampMat,tailMat,ESP,hasSlots,upgradeGain,brl,genAt,face,set sigT(v){sigT=v},refreshObj,forcePlane,EVT,eventoDe,checkEventos,setEvento,evtOff,updateEventos,luzMats,blocos,fantasiaDe,scene,objs,pascoaDia,fogos,updateVidaNova,cityList,saveCitySlot,deleteCity,loadCity,migrateCities,cityKey,newWorld,genWorld,WORLDS,WORLD_ORDER,weatherSeen,get booted(){return RV.booted},get fatal(){return RV.fatal},
+    setClock(ms){clockOverride=ms;_bCache=null;_rsT=-1e12;refreshSeason();checkSeasonVisuals();if(typeof checkEventos==='function'&&W)checkEventos();updateLighting(.016,0)},setWeather(k){weatherForce=k},popMoney,audioInit,THUMBS,ORDER,canPlace,planFor,applyBuild,hasRoadAccess,pops,prevMesh,musicTick,scheduleStep,buildMusicChain,news,cityIssues,checkIssues,doIssueAction,setTrayMin,get issuesNow(){return issuesNow},setIssueToasts(v){issueToastsOn=v},richToast,wpos,sun,machines,ducks,capys,butterflies,planes,harvestMachine,spawnDucks,spawnCapys,spawnButterflies,computeCropBonus,cropGrow,cropVal,industryRate,cityBoost,spinnersY,beams,CATS,computeStats,near,anchorOf,fpTiles,fitAt,isMulti,sizeOf,fixFootprints,buildLot,QROT,trains,barriers,closedX,airPlanes,ships,isRail,railInfo,railMask,railLink,stationTrack,lotTile,stationLinked,stationOnLoop,railFlowReverse,pathPoint,updateTransporte,manageTransport,forceAirplane,forceShip,portDock,cityIssues,fpSide,CATS,updateCars,cityBoost,trainReverse,placeTrain,peds,personModel,ROLES,waterTopMat,spawnCar,spawnParked,newTrip,lotSlots,lotTargets,carRoute,slotCar,lotBusy,frontRoad,carModel,updateAnimals,spawnPed,pedSpawnSpots,managePeds,updatePeds,updatePessoas,updateSignals,carLight,walkOk,isJunction,isSignal,signalLamps,pedCrossing,pedRoute,get sigT(){return sigT},sigSet,redLeft,onWalk,checkIssues,tryVisit,lotSeats,seatsTaken,bridgeProfile,bridgeRuns,bridgeH,bridgePart,deckLift,lowBridge,shipPath,shipChannel,shipLine,waterShore,wxSlot,WX_SLOT,spawnMudanca,cityEntrance,arrivalInfo,upgradeOf,doUpgrade,UPGRADE,nearPop,fpCenter,brazukaLogoMat,metroNear,arrivalsPerCycle,openObra,spawnEsp,manageEmergencia,animalGap,ANIMAL_SHAPE,sitPose,bench,mulberry,tube,addGente,chicken,personModel,cow,horse,sheep,ZOO_MAKE,roadModel,planeModel,shipModel,winMat,lampMat,tailMat,ESP,hasSlots,upgradeGain,brl,genAt,face,set sigT(v){sigT=v},refreshObj,forcePlane,EVT,eventoDe,checkEventos,setEvento,evtOff,updateEventos,luzMats,blocos,fantasiaDe,caipiraDe,fatorDiaria,scene,objs,pascoaDia,fogos,updateVidaNova,cityList,saveCitySlot,deleteCity,loadCity,migrateCities,cityKey,newWorld,genWorld,WORLDS,WORLD_ORDER,weatherSeen,get booted(){return RV.booted},get fatal(){return RV.fatal},
     ECON,MODES,TITLES,GOALS,TIER,unlocked,tierOf,titleForPop,titleNeed,progressTick,priceOf,modeOf,lockText,
     groundAt,get landSel(){return landSel},closePanel,OFF,START,BLK,NBK,I0,LAND,owned,blockOf,startOwn,buyLand,landPrice,landState,landInfo,landRing,refreshLand,openLand,landSigns,landVeil,ownedBounds,genOuter,
     tut,TUT_PASSOS,tutStart,tutStop,tutTick,tutConclui,tutNaNova,tutLugar,genMap,MCTX,ESTILOS,modeloDe,panelKind:()=>panelKind,openPanel,
