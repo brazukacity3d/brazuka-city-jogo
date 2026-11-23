@@ -627,6 +627,32 @@ body.tut-cine #hud,body.tut-cine #tray,body.tut-cine #cam,body.tut-cine #hint,bo
 .estilo-opt.on{border-color:var(--leaf);background:#eef5e6}
 @media (max-width:640px){.estilo-pick{grid-template-columns:1fr;gap:6px}.estilo-opt img{width:44px;height:44px}.estilo-opt small{font-size:12px}}
 @media (pointer:coarse) and (max-height:520px){.estilo-opt img{width:40px;height:40px}.estilo-opt{padding:5px 8px 5px 5px}.pick-tit{font-size:14px;margin-bottom:5px}}
+/* DEC-032: conta, nuvem e jogo completo */
+.conta-wrap{max-width:720px}
+.conta-card{background:var(--panel-solid);border-radius:18px;box-shadow:var(--shadow);padding:18px 20px;margin-bottom:14px}
+.conta-card h3{margin:0 0 6px;font-size:20px}.conta-card h4{margin:16px 0 8px;font-size:15px}
+.conta-card p{margin:0 0 12px;line-height:1.45}
+.conta-card ul{margin:0 0 14px;padding-left:20px;line-height:1.6}
+.conta-aviso{background:#fff4d6;border:1px solid #f2c230;border-radius:14px;padding:12px 16px;margin-bottom:14px}
+.conta-email label{display:block;margin:14px 0 6px;font-size:14px}
+.conta-email div,.conta-row{display:flex;gap:10px;flex-wrap:wrap}
+.conta-email input{flex:1 1 200px;min-width:0;font-size:16px;padding:12px 14px;border-radius:12px;border:1px solid #cfd6c8;background:#fff}
+.conta-row .big{flex:1 1 220px}
+.conta-msg{font-size:14px;color:#55604f;min-height:1em}
+.conta-fino{font-size:13px;color:#6b7466;margin-top:10px}
+.conta-chk{display:flex;gap:8px;align-items:center;margin:4px 0 12px;font-size:15px}
+.conta-chk input{width:20px;height:20px}
+.conta-lista{display:grid;gap:8px}
+.conta-cid{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.04)}
+.conta-cid span{display:grid}.conta-cid small{color:#6b7466}
+.conta-venda{border:2px solid #2f9e5a}
+.pix{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+.pix img{width:200px;height:200px;max-width:100%;border-radius:12px;background:#fff;image-rendering:pixelated}
+.pix>div{flex:1 1 240px;min-width:0}
+.pix textarea{width:100%;font:13px/1.3 ui-monospace,monospace;padding:8px;border-radius:10px;border:1px solid #cfd6c8;resize:none;margin-bottom:8px;word-break:break-all}
+.big.completo{border:2px solid #2f9e5a}
+.estilo-opt.trancado{opacity:.7}.estilo-opt.trancado svg{width:14px;height:14px;margin-right:4px;vertical-align:-2px}
+.conta-cid .big{flex:none;width:auto;min-width:0;padding:10px 18px}
 </style>
 <canvas id="gl" aria-label="Vale em 3D"></canvas>
 <div id="fx"></div>
@@ -715,10 +741,12 @@ body.tut-cine #hud,body.tut-cine #tray,body.tut-cine #cam,body.tut-cine #hint,bo
     <button class="big" id="btnNew"><b>Nova cidade</b><small>Terra aberta e algumas estradas</small></button>
     <button class="big" id="btnWorlds"><b>Descobrir mundos</b><small>Lugares prontos para continuar construindo</small></button>
     <button class="big" id="btnLoad"><b>Carregar cidade</b><small id="loadInfo">Nada salvo ainda</small></button>
+    <button class="big completo" id="btnCompleto" hidden><b>Jogo completo</b><small>Pagamento único por Pix, sem limite de moradores</small></button>
     <div class="pills">
       <button class="pill" id="pillSound"><span data-i="sound"></span><span id="pillSoundTxt">Som ligado</span></button>
       <button class="pill" id="pillFull" hidden><span data-i="expand"></span><span id="pillFullTxt">Tela cheia</span></button>
       <button class="pill" id="pillTut"><span data-i="play"></span>Tutorial</button>
+      <button class="pill" id="pillConta" hidden><span data-i="cloud"></span><span id="pillContaTxt">Entrar</span></button>
       <button class="pill" id="pillGfx"><span data-i="sparkle"></span><span id="pillGfxTxt">Gráficos: alto</span></button>
       <span class="pills-redes">
       <a class="pill pill-ico" id="lnkYoutube" href="https://www.youtube.com/@brazukacity3d" target="_blank" rel="noopener" aria-label="YouTube do Brazuka City" title="YouTube"><span data-i="video"></span></a>
@@ -726,6 +754,16 @@ body.tut-cine #hud,body.tut-cine #tray,body.tut-cine #cam,body.tut-cine #hint,bo
       <a class="pill pill-ico" id="lnkWhatsapp" href="https://chat.whatsapp.com/Iv2xw3RaHTaAFcmbXafw4f" target="_blank" rel="noopener" aria-label="Grupo do Brazuka City no WhatsApp" title="Grupo no WhatsApp"><span data-i="chat"></span></a>
       </span>
     </div>
+  </div>
+</section>
+
+<section id="conta" class="overlay-page" hidden>
+  <div class="maps-wrap conta-wrap">
+    <div class="maps-head">
+      <button id="contaBack" aria-label="Voltar"><span data-i="back"></span></button>
+      <div><h2>Conta e jogo completo</h2><p>Suas cidades na nuvem e a liberação completa do jogo.</p></div>
+    </div>
+    <div id="contaBody"></div>
   </div>
 </section>
 
@@ -829,7 +867,8 @@ if((prefs.pv||1)<PREFS_V){prefs.pv=PREFS_V;store.set('rv:prefs',prefs)}
 const savePrefs=()=>store.set('rv:prefs',prefs);
 const fmt=n=>Math.round(n).toLocaleString('pt-BR');
 // v0.17 (DEC-021): a moeda do jogo é o real
-const brl=n=>(n<0?'−':'')+'R$ '+fmt(Math.abs(n));
+// centavos=true mostra os centavos (preço do jogo completo)
+const brl=(n,centavos)=>(n<0?'−':'')+'R$ '+(centavos?Math.abs(n).toFixed(2).replace('.',','):fmt(Math.abs(n)));
 const SAVE_KEY='rv:save', SAVE_VERSION=9, CITIES_KEY='rv:cidades', CITIES_MAX=12;
 // BUG-011: todo texto que vem do jogador ou do save passa por esc() antes de ir para innerHTML
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2545,7 +2584,8 @@ let evtForce=typeof window!=='undefined'&&window.__RV_EVT||undefined;
 const festaDe=b=>evtForce!==undefined?(evtForce==='nenhum'?null:evtForce):eventoDe(b);
 function setEvento(k){evtForce=k;checkEventos(true)}
 // construção de época fora da sua festa: fica na cidade, apagada, e volta a funcionar no ano seguinte
-const evtOff=d=>!!d.evento&&EVT.atual!==d.evento;
+// DEC-032: na demonstração as construções de época ficam de fora (os enfeites automáticos continuam)
+const evtOff=d=>!!d.evento&&(EVT.atual!==d.evento||typeof demoAtiva==='function'&&demoAtiva());
 const enfeitesOn=()=>!(typeof prefs!=='undefined'&&prefs.enfeites===false);
 
 /* ---------- luzinhas: lâmpadas coloridas que acendem à noite e piscam em duas turmas ---------- */
@@ -3681,7 +3721,7 @@ function landInfo(b){let water=0,sand=0,trees=0;for(const i of landTiles(b)){con
   const cx=bx(b)-(NBK-1)/2,cz=bz(b)-(NBK-1)/2;const dir=Math.abs(cx)<1?(cz<0?'Norte':'Sul'):Math.abs(cz)<1?(cx<0?'Oeste':'Leste'):(cz<0?'Norte':'Sul')+(cx<0?'oeste':'este');
   return{nome:`${kind} do ${dir}`,water,sand,trees,anel:landRing(b)}}
 function landState(b){if(ownedBlock(b))return'seu';if(!landNear(b))return'longe';if((W.title|0)<LAND.titulo[landRing(b)])return'titulo';return W.money<landPrice(b)?'caro':'livre'}
-function buyLand(b){const st=landState(b);if(st!=='livre'&&st!=='caro')return false;const p=landPrice(b);if(W.money<p){SFX.error();toast(`Faltam ${brl(p-W.money)} para este terreno.`,true);return false}
+function buyLand(b){if(typeof ofertaCompleto==='function'&&ofertaCompleto('Comprar terrenos'))return false;const st=landState(b);if(st!=='livre'&&st!=='caro')return false;const p=landPrice(b);if(W.money<p){SFX.error();toast(`Faltam ${brl(p-W.money)} para este terreno.`,true);return false}
   W.money-=p;W.own[b]=1;const nm=landInfo(b).nome;news(`Terreno comprado: ${nm}, por ${brl(p)}. A cidade ganhou ${BLK*BLK} lotes.`);
   if(game.active){SFX.build&&SFX.build();toast(`${nm} agora é seu!`);refreshLand();updateHud()}return true}
 
@@ -4972,6 +5012,8 @@ function hourTick(){
   const night=isNight(),wk=weatherNow();let earned=0;computeCropBonus();const shopBoost=cityBoost('shop');
   // DEC-013: as famílias chegam aos poucos para a cidade toda (antes cada casa enchia sozinha, quase na hora)
   const MO=modeOf(),RK=MO.renda;let arrB=(W._arrAcc||0)+arrivalsPerCycle(st);
+  // DEC-032: na demonstração a cidade para de crescer em 599 moradores
+  let popNow=st.pop;
   for(let i=0;i<N*N;i++){const s=W.b[i];if(!s)continue;const d=ITEMS[s.id];if(evtOff(d))continue;
     if(d.crop){let rate=(night?.6:1)*SEASON.growth;if(wk==='chuva')rate*=1.6;else if(wk==='nublado')rate*=1.1;rate*=cropGrow[i];
       s.age=(s.age||0)+rate;const ns=stageOf(s);
@@ -4979,7 +5021,7 @@ function hourTick(){
         if(W.stats.harvests===1)news(`Primeira colheita de ${d.name.toLowerCase()}! Rendeu ${brl(v)}.`)}
       else if(ns!==s.stage)refreshObj(i,false)}
     else if(d.home){const conn=hasRoadAccess(i);const tgt=conn?Math.round(d.home*clamp(st.happy/ECON.homeFull,.3,1)*(1-Math.min(.4,st.short))):0;
-      if((s.occ||0)<tgt&&arrB>=1&&Math.random()<.4){arrB--;s.occ=(s.occ||0)+1;W._arrDay=(W._arrDay||0)+1;const mv=game.active&&typeof spawnMudanca==='function'?spawnMudanca(i):null;if(s.occ===1&&Math.random()<.4){if(!mv)popMoney(i,0,'chegou família');SFX.family()}}
+      if((s.occ||0)<tgt&&arrB>=1&&!demoCheia(popNow)&&Math.random()<.4){arrB--;popNow++;s.occ=(s.occ||0)+1;W._arrDay=(W._arrDay||0)+1;const mv=game.active&&typeof spawnMudanca==='function'?spawnMudanca(i):null;if(s.occ===1&&Math.random()<.4){if(!mv)popMoney(i,0,'chegou família');SFX.family()}}
       else if((s.occ||0)>tgt&&Math.random()<.3)s.occ--;}
     else if(d.ind){const inc=industryRate(i,d,st)*ECON.ind*RK;if(inc>0){W.money+=inc;earned+=inc;const acc=(shopPot.get(i)||0)+inc;if(cyc%6===0&&acc>=1){popMoney(i,Math.round(acc));shopPot.set(i,0)}else shopPot.set(i,acc)}}
     // v0.9: estação, aeroporto, porto e zoológico rendem por ciclo (passagens, turistas, cargas, ingressos)
@@ -5183,6 +5225,7 @@ function deserialize(s){if(!validSave(s))throw new Error('save inválido');s=mig
   w.T=Uint8Array.from(String(s.T).split('').map(Number));for(const r of s.b){if(!Array.isArray(r))continue;const[i,id,v,rot,age,occ,sz]=r;if(ITEMS[id]&&i>=0&&i<N*N){w.b[i]={id,v:+v||0,rot:+rot||0,age:+age||0,occ:+occ||0};if(sz===1)w.b[i].sz=1}}fixFootprints(w);return w}
 function saveGame(silent){if(!W||!game.active)return false;const data=serialize();const ok=store.set(SAVE_KEY,data)&&saveCitySlot(data);
   if(!ok){if(!game._warnedSave||!silent){game._warnedSave=true;toast('Não foi possível salvar neste navegador. Ele pode estar em modo privado ou sem espaço.',true)}return false}
+  if(typeof nuvemDepoisDeSalvar==='function')nuvemDepoisDeSalvar();
   if(!silent)toast('Cidade salva.');return true}
 /* ---------- Várias cidades salvas (v0.7) ----------
    rv:cidades guarda a lista (nome, mundo, dia, moradores); cada cidade fica em rv:cidade:<id>.
@@ -5649,13 +5692,14 @@ function renderPanel(){const b=$('#panelBody'),title=$('#panelTitle');
       <p class="land-det">${upgradeGain(u.from,u.to).det}</p><p class="land-price"><span class="coin"></span><b>${brl(u.cost)}</b></p>
       ${u.why?`<p class="land-why${unlocked(u.to)?'':' lock'}">${unlocked(u.to)?'':icon('lock')}${esc(u.why)}</p>`:''}<button class="btn dark" id="obraUp"${u.ok?'':' disabled'}>Melhorar</button></div>`:'');
     const bt=$('#obraUp');if(bt)bt.onclick=()=>{if(doUpgrade(i))renderPanel()};return}
-  if(panelKind==='settings'){title.textContent='Ajustes';b.innerHTML=sw('swMusic',prefs.music,'Música')+sw('swSfx',prefs.sfx,'Efeitos e ambiente','Chuva, neblina e nuvens na tela, passarinhos, grilos e sons de obra. Desligado, o céu fica limpo (o clima de verdade continua no topo e na economia).')+`<div class="setting"><div>Volume</div><input type="range" id="vol" min="0" max="1" step=".05" value="${prefs.vol}" aria-label="Volume"></div>`+sw('swDia',prefs.luz==='dia','Sempre de dia','Melhor para ver o mapa. Desligado, a luz segue o sol de Brasília. A economia usa sempre o sol real.')+sw('swShadows',prefs.shadows,'Sombras','Desligue se o jogo ficar lento')+sw('swGrid',prefs.grid,'Grade de construção','Aparece ao construir (tecla G)')+sw('swEnfeites',enfeitesOn(),'Enfeites das festas','Luzinhas, varais de luz, Papai Noel e fogos no Natal, Carnaval e Festa Junina. As construções de época continuam na bandeja.')+`<div class="setting"><div>Atalhos<small>Botão direito e arrastar gira e inclina · Q/E giram · Espaço pausa a economia · 1, 2, 3 ritmo · X remove · Esc volta a olhar</small></div></div>`;
+  if(panelKind==='settings'){title.textContent='Ajustes';b.innerHTML=sw('swMusic',prefs.music,'Música')+sw('swSfx',prefs.sfx,'Efeitos e ambiente','Chuva, neblina e nuvens na tela, passarinhos, grilos e sons de obra. Desligado, o céu fica limpo (o clima de verdade continua no topo e na economia).')+`<div class="setting"><div>Volume</div><input type="range" id="vol" min="0" max="1" step=".05" value="${prefs.vol}" aria-label="Volume"></div>`+sw('swDia',prefs.luz==='dia','Sempre de dia','Melhor para ver o mapa. Desligado, a luz segue o sol de Brasília. A economia usa sempre o sol real.')+sw('swShadows',prefs.shadows,'Sombras','Desligue se o jogo ficar lento')+sw('swGrid',prefs.grid,'Grade de construção','Aparece ao construir (tecla G)')+(nuvemOk()?`<button class="big" id="setConta"><b>${logado()?'Conta e nuvem':'Entrar na conta'}</b><small>${demoAtiva()?'Jogo completo e cidades na nuvem':'Guarde suas cidades na nuvem'}</small></button>`:'')+sw('swEnfeites',enfeitesOn(),'Enfeites das festas','Luzinhas, varais de luz, Papai Noel e fogos no Natal, Carnaval e Festa Junina. As construções de época continuam na bandeja.')+`<div class="setting"><div>Atalhos<small>Botão direito e arrastar gira e inclina · Q/E giram · Espaço pausa a economia · 1, 2, 3 ritmo · X remove · Esc volta a olhar</small></div></div>`;
     $('#swMusic').onclick=()=>{prefs.music=!prefs.music;if(prefs.music)prefs.mute=false;savePrefs();applyAudioPrefs();renderPanel();syncSoundBtn()};
     $('#swSfx').onclick=()=>{prefs.sfx=!prefs.sfx;savePrefs();applyAudioPrefs();renderPanel();syncSoundBtn()};
     $('#vol').oninput=e=>{prefs.vol=+e.target.value;savePrefs();applyAudioPrefs()};
     $('#swDia').onclick=()=>{prefs.luz=prefs.luz==='dia'?'real':'dia';savePrefs();renderPanel()};
     $('#swShadows').onclick=()=>{prefs.shadows=!prefs.shadows;savePrefs();applyShadows();renderPanel()};
     $('#swGrid').onclick=()=>{prefs.grid=!prefs.grid;savePrefs();gridLines.visible=prefs.grid&&game.tool.mode!=='look';renderPanel()};
+    if($('#setConta'))$('#setConta').onclick=()=>{closePanel();abrirConta()};
     $('#swEnfeites').onclick=()=>{prefs.enfeites=!enfeitesOn();savePrefs();checkEventos(true);renderPanel()};}
   else if(panelKind==='stats'){title.textContent='Estatísticas';const st=computeStats();const hist=W.stats.hist;const inc=hist.length>24?hist[hist.length-1][0]-hist[hist.length-25][0]:null;
     b.innerHTML=titleBox(st)+arrivalBox(st)+`<div class="stat-grid"><div class="stat-box"><span>Moradores</span><b>${fmt(st.pop)}</b><small style="color:var(--muted)"> de ${fmt(st.cap)} vagas</small></div><div class="stat-box"><span>Felicidade</span><b>${st.happy}%</b></div><div class="stat-box"><span>Energia</span><b>${Math.round(st.use)} / ${Math.round(st.gen)}</b></div><div class="stat-box"><span>Colheitas</span><b>${fmt(W.stats.harvests)}</b></div><div class="stat-box"><span>Último dia</span><b>${inc==null?'—':(inc>=0?'+':'')+fmt(inc)}</b></div><div class="stat-box"><span>Campos</span><b>${fmt(st.fields)}</b></div><div class="stat-box"><span>Dias da cidade</span><b>${fmt(Math.floor(W.hours/24))}</b></div><div class="stat-box"><span>Estação</span><b style="font-size:18px">${SEASONS[SEASON.key].n}</b></div></div>
@@ -5801,9 +5845,11 @@ function cityIssues(st){if(!W)return[];st=st||computeStats();const out=[];const 
   if(st.smoky>0&&st.pollPen>=3){add('fumaca','atencao',`Fumaça incomodando ${st.smoky} ${st.smoky===1?'casa':'casas'}`,`Moradias perto de fábricas perdem felicidade (hoje −${st.pollPen}%).`,
     st.clean?'Afaste as casas das fábricas: indústria de um lado, bairro do outro.':'Uma usina de reciclagem corta a fumaça pela metade. Ou afaste as casas das fábricas.',st.clean?[{rotulo:'Mover',mode:'move'}]:[build('reciclagem'),{rotulo:'Mover',mode:'move'}])}
   if(st.pop>=40&&!st.edu)add('educacao','dica','Cidade sem escola',`${fmt(st.pop)} moradores e nenhuma escola ou creche.`,'Escola, creche, colégio e biblioteca deixam todos mais felizes. A universidade ainda faz as indústrias renderem 15% a mais.',[build('escola'),build('creche')]);
+  // DEC-032: limite da demonstração
+  if(demoCheia(st.pop))add('demo','atencao','Limite da demonstração',`A cidade chegou a ${fmt(DEMO.pop)} moradores, o máximo da demonstração. Ela continua viva, mas não chega mais gente.`,'O jogo completo tira o limite e libera todos os títulos, mundos e terrenos, num pagamento único.',[{rotulo:'Ver jogo completo',conta:1}]);
   return out.sort((a,c)=>NIVEL_ORDEM[a.nivel]-NIVEL_ORDEM[c.nivel])}
 function goTile(i){const p=wpos(i);cam.target.set(p.x,0,p.z);cam.zoomTarget=Math.max(cam.zoomTarget,2)}
-function doIssueAction(a){if(!a)return;
+function doIssueAction(a){if(!a)return;if(a.conta){closePanel&&closePanel();abrirConta();return}
   if(a.tile!=null){goTile(a.tile);if(a.obra){openObra(anchorOf(a.tile));return}if(TOUCH||innerWidth<640)closePanel();return}
   if(a.mode){setTool(a.mode);closePanel();return}
   if(a.item){const d=ITEMS[a.item];game.cat=d.cat;if(prefs.trayMin)setTrayMin(false);renderTabs();renderItems();setTool('build',a.item);
@@ -5839,11 +5885,13 @@ function refreshMenu(){migrateCities();const s=store.get(SAVE_KEY,null);const b=
   // sem cidade para continuar, "Nova cidade" vira o botão principal
   $('#btnNew').classList.toggle('primary',b.hidden);
   const n=cityList().length;$('#btnLoad').disabled=!n;$('#loadInfo').textContent=n?`${n} ${n===1?'cidade salva':'cidades salvas'}`:'Nada salvo ainda'}
-$('#btnNew').onclick=()=>{audioInit();SFX.open();openMaps()};
+$('#btnNew').onclick=()=>{audioInit();SFX.open();
+  // DEC-032: na demonstração dá para ter uma cidade salva
+  if(demoAtiva()&&cityList().length>=DEMO.cidades&&ofertaCompleto('Ter mais de uma cidade salva'))return;openMaps()};
 $('#btnContinue').onclick=()=>{audioInit();const s=store.get(SAVE_KEY,null);if(!s)return;try{startGame(deserialize(s),false);SFX.open()}catch(e){toast('Não consegui abrir o arquivo salvo.',true)}};
 $('#mapsBack').onclick=()=>{SFX.click();$('#maps').hidden=true;$('#menu').hidden=false};
 /* ---------- Descobrir mundos ---------- */
-$('#btnWorlds').onclick=()=>{audioInit();SFX.open();openWorlds()};
+$('#btnWorlds').onclick=()=>{audioInit();SFX.open();if(ofertaCompleto('Os mundos prontos'))return;openWorlds()};
 $('#worldsBack').onclick=()=>{SFX.click();$('#worlds').hidden=true;$('#menu').hidden=false};
 const worldCache={};
 function openWorlds(){$('#menu').hidden=true;$('#worlds').hidden=false;const g=$('#worldGrid');
@@ -5868,10 +5916,10 @@ let pickedMode='normal';
 // DEC-030: estilo das moradias da cidade nova, escolhido junto com o modo
 let pickedEstilo='classico';
 function renderEstiloPick(){const el=$('#estiloPick');if(!el)return;el.innerHTML=ESTILOS.map(e=>{const im=THUMBS[e.id==='classico'?'casa':'casa@'+e.id];
-  return`<button role="radio" aria-checked="${e.id===pickedEstilo}" class="estilo-opt${e.id===pickedEstilo?' on':''}" data-pest="${e.id}">${im?`<img alt="" src="${im}">`:''}<span><b>${esc(e.nome)}</b><small>${esc(e.desc)}</small></span></button>`}).join('')}
+  const tr=demoAtiva()&&!DEMO.estilos.includes(e.id);return`<button role="radio" aria-checked="${e.id===pickedEstilo}" class="estilo-opt${e.id===pickedEstilo?' on':''}${tr?' trancado':''}" data-pest="${e.id}">${im?`<img alt="" src="${im}">`:''}<span><b>${tr?icon('lock'):''}${esc(e.nome)}</b><small>${esc(e.desc)}</small></span></button>`}).join('')}
 function renderModePick(){$('#modePick').innerHTML=MODE_ORDER.map(k=>{const m=MODES[k];return`<button role="radio" aria-checked="${k===pickedMode}" class="mode-opt${k===pickedMode?' on':''}" data-pmode="${k}"><b>${m.medalha?icon('medal'):''}${m.nome}</b><small>${m.desc}</small></button>`}).join('')}
 $('#modePick').addEventListener('click',e=>{const b=e.target.closest('[data-pmode]');if(!b)return;pickedMode=b.dataset.pmode;SFX.click();renderModePick()});
-$('#estiloPick').addEventListener('click',e=>{const b=e.target.closest('[data-pest]');if(!b)return;pickedEstilo=b.dataset.pest;SFX.click();renderEstiloPick()});
+$('#estiloPick').addEventListener('click',e=>{const b=e.target.closest('[data-pest]');if(!b)return;if(demoAtiva()&&!DEMO.estilos.includes(b.dataset.pest)){$('#maps').hidden=true;ofertaCompleto('O estilo '+ESTILOS.find(x=>x.id===b.dataset.pest).nome);return}pickedEstilo=b.dataset.pest;SFX.click();renderEstiloPick()});
 function openMaps(){$('#menu').hidden=true;$('#maps').hidden=false;renderModePick();renderEstiloPick();const g=$('#mapGrid');
   g.innerHTML=Object.entries(MAPS).map(([k,m])=>`<article class="map-card"><canvas id="pv_${k}" width="640" height="400"></canvas><div class="map-body"><span class="eyebrow">Mapa gerado</span><h3>${m.name}</h3><p>${m.desc}</p><div class="map-actions"><button class="btn soft" data-shuffle="${k}">${icon('shuffle')}Embaralhar</button><button class="btn dark" data-start="${k}">Começar aqui</button></div></div></article>`).join('');
   Object.keys(MAPS).forEach(k=>{mapSeeds[k]=Math.floor(Math.random()*1e9);drawPreview(k)})}
@@ -6125,6 +6173,110 @@ function tutFesta(){const fx=$('#fx');if(!fx)return;const cores=['#f2b632','#4f8
     s.style.animationDelay=Math.random()*.6+'s';s.style.animationDuration=1.8+Math.random()*1.4+'s';s.style.setProperty('--gx',(Math.random()*2-1)*120+'px');fx.appendChild(s);setTimeout(()=>s.remove(),4000)}
   SFX.harvest()}
 
+/* ---- js/11c-conta.js ---- */
+'use strict';
+/* ================= Conta, save na nuvem e jogo completo (DEC-032) =================
+   Conta do jogador no Supabase (Google ou link por e-mail), cidades guardadas na nuvem e a venda do jogo completo
+   por R$ 4,90 num pagamento único por Pix (Mercado Pago). Tudo fica desligado até o servidor ser configurado:
+   sem `NUVEM.url`, nada disso aparece; com `NUVEM.venda` falso, ninguém tem trava de demonstração.
+   O servidor (tabelas e funções) fica em tools/supabase/, com o passo a passo para ligar. */
+
+// configuração (o jogador ainda não criou as contas: fica vazio e desligado)
+const NUVEM=Object.assign({url:'',chave:'',venda:false,preco:4.90,hosts:['brazukacity3d.github.io','localhost','127.0.0.1'],forca:false},(typeof window!=='undefined'&&window.__NUVEM)||{});
+// a página do jogo no claude.ai não deixa falar com outros servidores: a conta só aparece no link próprio
+const nuvemOk=()=>!!(NUVEM.url&&NUVEM.chave&&(NUVEM.forca||NUVEM.hosts.includes(location.hostname)));
+// limites da demonstração (plano de venda revisto em 21/11)
+const DEMO={pop:599,cidades:1,estilos:['classico']};
+const CONTA={sessao:store.get('bc:sessao',null),completo:!!store.get('bc:completo',false),jogador:null,pix:null,poll:0,autoT:0,ultimo:0};
+const demoAtiva=()=>!!NUVEM.venda&&!CONTA.completo;
+const demoCheia=pop=>demoAtiva()&&pop>=DEMO.pop;
+const logado=()=>!!(CONTA.sessao&&CONTA.sessao.access_token);
+
+/* ---------- conversa com o servidor (REST do Supabase, sem biblioteca) ---------- */
+async function nuvem(path,o={},tentou){if(!nuvemOk())throw new Error('nuvem desligada');
+  const h={apikey:NUVEM.chave,'Content-Type':'application/json',...(o.headers||{})};if(logado())h.Authorization='Bearer '+CONTA.sessao.access_token;
+  const r=await fetch(NUVEM.url+path,{method:o.method||'GET',headers:h,body:o.body!=null?JSON.stringify(o.body):undefined});
+  if(r.status===401&&logado()&&!tentou&&await renovar())return nuvem(path,o,true);
+  if(!r.ok){let m='';try{m=(await r.json()).msg||''}catch(e){}throw new Error(m||('erro '+r.status))}
+  const t=await r.text();return t?JSON.parse(t):null}
+function guardaSessao(s){CONTA.sessao=s;store.set('bc:sessao',s)}
+async function renovar(){try{const r=await fetch(NUVEM.url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:NUVEM.chave,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:CONTA.sessao.refresh_token})});
+    if(!r.ok)return false;const j=await r.json();guardaSessao({...CONTA.sessao,access_token:j.access_token,refresh_token:j.refresh_token||CONTA.sessao.refresh_token,user:j.user||CONTA.sessao.user});return true}catch(e){return false}}
+const voltaPara=()=>location.origin+location.pathname;
+
+/* ---------- entrar e sair ---------- */
+function entrarGoogle(){if(!nuvemOk())return;location.href=`${NUVEM.url}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(voltaPara())}`}
+async function entrarEmail(email){email=String(email||'').trim();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))throw new Error('Confira o e-mail.');
+  await nuvem(`/auth/v1/otp?redirect_to=${encodeURIComponent(voltaPara())}`,{method:'POST',body:{email,create_user:true}});return email}
+// volta do Google ou do link do e-mail: a sessão vem no endereço (#access_token=...)
+async function lerRetornoLogin(hash){hash=hash==null?location.hash:hash;if(!/access_token=/.test(hash))return false;const p=new URLSearchParams(hash.replace(/^#/,''));
+  guardaSessao({access_token:p.get('access_token'),refresh_token:p.get('refresh_token'),expires_at:Date.now()+(+p.get('expires_in')||3600)*1000,user:null});
+  try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
+  try{const u=await nuvem('/auth/v1/user');guardaSessao({...CONTA.sessao,user:{id:u.id,email:u.email}});renderPillConta()}catch(e){}
+  await lerJogador();renderConta();renderPillConta();if(typeof toast==='function')toast('Você entrou na sua conta.');return true}
+async function sair(){try{if(logado())await nuvem('/auth/v1/logout',{method:'POST'})}catch(e){}guardaSessao(null);CONTA.jogador=null;renderConta();renderPillConta()}
+const uid=()=>CONTA.sessao&&CONTA.sessao.user&&CONTA.sessao.user.id;
+
+/* ---------- jogo completo ---------- */
+async function lerJogador(){if(!logado()||!uid())return null;try{const r=await nuvem(`/rest/v1/jogadores?select=completo,desde&user_id=eq.${uid()}`);CONTA.jogador=r&&r[0]||{completo:false};
+    marcaCompleto(!!CONTA.jogador.completo)}catch(e){}return CONTA.jogador}
+function marcaCompleto(v){const antes=CONTA.completo;CONTA.completo=v;store.set('bc:completo',v);if(v&&!antes){if(typeof renderItems==='function'&&game.active)renderItems();renderPillConta()}}
+// cria o Pix no servidor (função criar-pix) e espera a confirmação do pagamento
+async function pagarPix(){if(!logado())throw new Error('Entre na sua conta para comprar.');const r=await nuvem('/functions/v1/criar-pix',{method:'POST',body:{}});
+  CONTA.pix={id:r.id,qr:r.qr_code,img:r.qr_code_base64,expira:r.expira||null,t0:Date.now()};renderConta();esperarPagamento();return CONTA.pix}
+function esperarPagamento(){clearInterval(CONTA.poll);CONTA.poll=setInterval(async()=>{if(!CONTA.pix){clearInterval(CONTA.poll);return}
+  const j=await lerJogador();if(j&&j.completo){clearInterval(CONTA.poll);CONTA.pix=null;renderConta();if(typeof news==='function'&&game.active)news('Jogo completo liberado! Obrigado por apoiar o Brazuka City.');toast('Pronto! O jogo completo está liberado.')}
+  else if(Date.now()-CONTA.pix.t0>30*60*1000){clearInterval(CONTA.poll);CONTA.pix=null;renderConta()}},+(NUVEM.pollMs||5000))}
+
+/* ---------- cidades na nuvem ---------- */
+async function guardarNaNuvem(ids){if(!logado()||!uid())return 0;const L=cityList().filter(e=>!ids||ids.includes(e.id));let n=0;
+  for(const e of L){const d=store.get(cityKey(e.id),null);if(!d)continue;await nuvem('/rest/v1/saves?on_conflict=user_id,cidade',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:{user_id:uid(),cidade:e.id,nome:e.name,pop:e.pop||0,dados:d,atualizado:new Date().toISOString()}});n++}
+  CONTA.ultimo=Date.now();return n}
+async function listaNuvem(){if(!logado())return[];return await nuvem('/rest/v1/saves?select=cidade,nome,pop,atualizado&order=atualizado.desc')||[]}
+async function baixarDaNuvem(id){const r=await nuvem(`/rest/v1/saves?select=dados&cidade=eq.${encodeURIComponent(id)}`);const d=r&&r[0]&&r[0].dados;if(!validSave(d))throw new Error('Essa cidade da nuvem não abriu.');
+  saveCitySlot(d);startGame(deserialize(d),false);return true}
+// salvar no aparelho também guarda na nuvem (no máximo uma vez por minuto)
+function nuvemDepoisDeSalvar(){if(!logado()||!game.active||!W)return;if(Date.now()-CONTA.ultimo<60000)return;CONTA.ultimo=Date.now();guardarNaNuvem([W.id]).catch(()=>{})}
+
+/* ---------- tela da conta ---------- */
+function abrirConta(motivo){$('#menu').hidden=true;$('#conta').hidden=false;CONTA.motivo=motivo||null;renderConta();if(logado())lerJogador().then(renderConta)}
+function fecharConta(){$('#conta').hidden=true;CONTA.motivo=null;if(!game.active)$('#menu').hidden=false}
+// aviso de "isso é do jogo completo" (abre a conta na parte da compra)
+function ofertaCompleto(motivo){if(!demoAtiva())return false;abrirConta(motivo);return true}
+const LIBERA=['Todos os títulos, da Vila à Mega Brazuka (sem limite de 599 moradores)','Todas as construções, os mundos prontos e os terrenos à venda','Até 12 cidades salvas','Os estilos Nordeste e Mineiro e os que vierem','As construções do Natal, do Carnaval e da Festa Junina'];
+async function renderConta(){const box=$('#contaBody');if(!box||$('#conta').hidden)return;
+  if(!nuvemOk()){box.innerHTML=`<div class="conta-card"><p>A conta e a compra funcionam no link próprio do jogo (brazukacity3d.github.io/brazuka-city-jogo).</p></div>`;return}
+  const comp=CONTA.completo,venda=NUVEM.venda,preco=brl(NUVEM.preco,true);let h='';
+  if(CONTA.motivo)h+=`<div class="conta-aviso">Isso faz parte do jogo completo: <b>${esc(CONTA.motivo)}</b>.</div>`;
+  if(!logado()){h+=`<div class="conta-card"><h3>Entrar</h3><p>Com a conta, suas cidades ficam guardadas na nuvem e você continua de outro aparelho.</p>
+      <button class="big primary" id="contaGoogle"><b>Entrar com Google</b></button>
+      <form id="contaEmailForm" class="conta-email"><label for="contaEmail">Ou receba um link de acesso no e-mail</label><div><input id="contaEmail" type="email" autocomplete="email" placeholder="seu@email.com" required><button class="big" id="contaEmailBtn" type="submit"><b>Mandar link</b></button></div><p class="conta-msg" id="contaMsg" role="status"></p></form></div>`}
+  else{const u=CONTA.sessao.user||{};h+=`<div class="conta-card"><h3>Sua conta</h3><p>${esc(u.email||'Conta conectada')} · <b id="contaStatus">${comp?'Jogo completo':venda?'Demonstração':'Conta conectada'}</b></p>
+      <div class="conta-row"><button class="big" id="contaGuardar"><b>Guardar minhas cidades na nuvem</b><small>${CONTA.ultimo?'Guardado agora há pouco':'Também guarda sozinho quando você salva'}</small></button><button class="big" id="contaSair"><b>Sair</b></button></div>
+      <h4>Na nuvem</h4><div id="contaNuvem" class="conta-lista"><p class="conta-msg">Carregando…</p></div></div>`}
+  if(venda&&!comp){h+=`<div class="conta-card conta-venda"><h3>Jogo completo por ${preco}</h3><p>Pagamento único por Pix. Sem assinatura: é seu para sempre, com tudo o que vier depois.</p><ul>${LIBERA.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`;
+    if(CONTA.pix){h+=`<div class="pix"><img id="pixImg" alt="QR Code do Pix" src="data:image/png;base64,${esc(CONTA.pix.img||'')}"><div><p>Abra o app do seu banco, escolha <b>Pix › Ler QR Code</b> ou use o Pix copia e cola:</p><textarea id="pixCodigo" readonly rows="3">${esc(CONTA.pix.qr||'')}</textarea><button class="big" id="pixCopiar"><b>Copiar código</b></button><p class="conta-msg" id="pixEspera" role="status">Aguardando o pagamento… O jogo libera sozinho assim que o Pix cair.</p></div></div>`}
+    else h+=`<label class="conta-chk"><input type="checkbox" id="contaMaior"> Tenho 18 anos ou mais</label><button class="big primary" id="contaPagar" ${logado()?'':'disabled'}><b>Pagar ${preco} com Pix</b><small>${logado()?'O QR Code aparece aqui':'Entre na sua conta primeiro'}</small></button><p class="conta-msg" id="contaPagarMsg" role="status"></p><p class="conta-fino">Arrependeu? Em até 7 dias devolvemos o valor (Código de Defesa do Consumidor, art. 49).</p>`;
+    h+=`</div>`}
+  else if(comp)h+=`<div class="conta-card"><h3>Obrigado!</h3><p>O jogo completo está liberado nesta conta.</p></div>`;
+  box.innerHTML=h;ligaConta();
+  if(logado())listaNuvem().then(L=>{const el=$('#contaNuvem');if(!el)return;const loc=new Set(cityList().map(e=>e.id));
+    el.innerHTML=L.length?L.map(c=>`<div class="conta-cid"><span><b>${esc(c.nome)}</b><small>${esc(String(c.pop||0))} moradores${loc.has(c.cidade)?' · também neste aparelho':''}</small></span><button class="big" data-baixar="${esc(c.cidade)}"><b>${loc.has(c.cidade)?'Abrir a da nuvem':'Baixar'}</b></button></div>`).join(''):'<p class="conta-msg">Nenhuma cidade na nuvem ainda.</p>';
+    el.querySelectorAll('[data-baixar]').forEach(b=>b.onclick=async()=>{try{await baixarDaNuvem(b.dataset.baixar);$('#conta').hidden=true}catch(e){toast(e.message,true)}})}).catch(()=>{const el=$('#contaNuvem');if(el)el.innerHTML='<p class="conta-msg">Não deu para ler a nuvem agora.</p>'})}
+function ligaConta(){const on=(s,f)=>{const el=$(s);if(el)el.onclick=f};
+  on('#contaGoogle',entrarGoogle);
+  const f=$('#contaEmailForm');if(f)f.onsubmit=async ev=>{ev.preventDefault();const m=$('#contaMsg');try{const e=await entrarEmail($('#contaEmail').value);m.textContent=`Mandamos um link para ${e}. Abra o link neste aparelho para entrar.`}catch(err){m.textContent=err.message}};
+  on('#contaSair',()=>sair());
+  on('#contaGuardar',async()=>{try{const n=await guardarNaNuvem();toast(n?`${n} cidade${n>1?'s':''} guardada${n>1?'s':''} na nuvem.`:'Nenhuma cidade salva neste aparelho ainda.');renderConta()}catch(e){toast('Não deu para guardar na nuvem agora.',true)}});
+  on('#contaPagar',async()=>{const m=$('#contaPagarMsg');if(!$('#contaMaior').checked){m.textContent='A compra é só para maiores de 18 anos.';return}m.textContent='Gerando o Pix…';try{await pagarPix()}catch(e){m.textContent=e.message||'Não deu para gerar o Pix agora.'}});
+  on('#pixCopiar',async()=>{try{await navigator.clipboard.writeText(CONTA.pix.qr);toast('Código copiado.')}catch(e){const t=$('#pixCodigo');t.select();toast('Selecionei o código: copie com Ctrl+C.')}})}
+// botão da conta no menu (só aparece com o servidor ligado)
+function renderPillConta(){const p=$('#pillConta');if(!p)return;p.hidden=!nuvemOk();if(p.hidden)return;$('#pillContaTxt').textContent=logado()?(CONTA.completo||!NUVEM.venda?'Sua conta':'Jogo completo'):'Entrar';
+  const b=$('#btnCompleto');if(b)b.hidden=!demoAtiva()}
+function iniciaConta(){renderPillConta();const p=$('#pillConta');if(p)p.onclick=()=>{audioInit&&audioInit();abrirConta()};const b=$('#btnCompleto');if(b)b.onclick=()=>abrirConta();
+  const v=$('#contaBack');if(v)v.onclick=fecharConta;
+  if(nuvemOk()){lerRetornoLogin().then(ok=>{if(!ok&&logado())lerJogador().then(renderPillConta)})}}
+
 /* ---- js/12-principal.js ---- */
 'use strict';
 /* ================= Loop principal ================= */
@@ -6173,7 +6325,7 @@ async function boot(hotData){
   // BUG-036: o fundo do menu olha para a vila (m.col/m.row estão na área inicial)
   cam.target.set(m.col+OFF-HALF+2,0,m.row+OFF-HALF);cam.zoom=1;
   $('#loadBar').style.width='100%';
-  applyShadows();syncSoundBtn();refreshMenu();$('#menu').hidden=false;
+  applyShadows();syncSoundBtn();refreshMenu();$('#menu').hidden=false;iniciaConta();
   setTimeout(()=>{$('#loading').style.opacity='0';setTimeout(()=>$('#loading').remove(),500)},250);
   requestAnimationFrame(frame);
   RV.booted=true;
@@ -6190,7 +6342,7 @@ if(navigator.webdriver||/[?&]teste\b/.test(location.search)){
     placeAt,removeAt,cloudMat,updateHud,toast,SUN,SEASON,weatherNow,realSunEl,sunPos,brasilia,flushPaint,flushTerra,modelCache,objs,cars,boats,animals,orbitBy,tileSd,terrainHeightAt,
     camera,pickUp,dropAt,cancelCarry,rotateTool,previewAt,setTool,ghostRoot,arrow,toolV,keyFor,variantOf,canMoveTo,get reach(){return reach},
     renderer,tufts,PREV_MAX,TUFT_MAX,modelKey,SEASONS,seasonOf,brasiliaAt,clockText,dateText,isNight,genAt,prefs,updateLighting,resetNorth,EL_DEF,
-    setClock(ms){clockOverride=ms;_bCache=null;_rsT=-1e12;refreshSeason();checkSeasonVisuals();if(typeof checkEventos==='function'&&W)checkEventos();updateLighting(.016,0)},setWeather(k){weatherForce=k},popMoney,audioInit,THUMBS,ORDER,canPlace,planFor,applyBuild,hasRoadAccess,pops,prevMesh,musicTick,scheduleStep,buildMusicChain,news,cityIssues,checkIssues,doIssueAction,setTrayMin,get issuesNow(){return issuesNow},setIssueToasts(v){issueToastsOn=v},richToast,wpos,sun,machines,ducks,capys,butterflies,planes,harvestMachine,spawnDucks,spawnCapys,spawnButterflies,computeCropBonus,cropGrow,cropVal,industryRate,cityBoost,spinnersY,beams,CATS,computeStats,near,anchorOf,fpTiles,fitAt,isMulti,sizeOf,fixFootprints,buildLot,QROT,trains,barriers,closedX,airPlanes,ships,isRail,railInfo,railMask,railLink,stationTrack,lotTile,stationLinked,stationOnLoop,railFlowReverse,pathPoint,updateTransporte,manageTransport,forceAirplane,forceShip,portDock,cityIssues,fpSide,CATS,updateCars,cityBoost,trainReverse,placeTrain,peds,personModel,ROLES,waterTopMat,spawnCar,spawnParked,newTrip,lotSlots,lotTargets,carRoute,slotCar,lotBusy,frontRoad,carModel,updateAnimals,spawnPed,pedSpawnSpots,managePeds,updatePeds,updatePessoas,updateSignals,carLight,walkOk,isJunction,isSignal,signalLamps,pedCrossing,pedRoute,get sigT(){return sigT},sigSet,redLeft,onWalk,checkIssues,tryVisit,lotSeats,seatsTaken,bridgeProfile,bridgeRuns,bridgeH,bridgePart,deckLift,lowBridge,shipPath,shipChannel,shipLine,waterShore,wxSlot,WX_SLOT,spawnMudanca,cityEntrance,arrivalInfo,upgradeOf,doUpgrade,UPGRADE,nearPop,fpCenter,brazukaLogoMat,metroNear,arrivalsPerCycle,openObra,spawnEsp,manageEmergencia,animalGap,ANIMAL_SHAPE,sitPose,bench,mulberry,tube,addGente,chicken,personModel,cow,horse,sheep,ZOO_MAKE,roadModel,planeModel,shipModel,winMat,lampMat,tailMat,ESP,hasSlots,upgradeGain,brl,genAt,face,set sigT(v){sigT=v},refreshObj,forcePlane,EVT,eventoDe,checkEventos,setEvento,evtOff,updateEventos,luzMats,blocos,fantasiaDe,caipiraDe,fatorDiaria,scene,objs,pascoaDia,fogos,updateVidaNova,cityList,saveCitySlot,deleteCity,loadCity,migrateCities,cityKey,newWorld,genWorld,WORLDS,WORLD_ORDER,weatherSeen,get booted(){return RV.booted},get fatal(){return RV.fatal},
+    setClock(ms){clockOverride=ms;_bCache=null;_rsT=-1e12;refreshSeason();checkSeasonVisuals();if(typeof checkEventos==='function'&&W)checkEventos();updateLighting(.016,0)},setWeather(k){weatherForce=k},popMoney,audioInit,THUMBS,ORDER,canPlace,planFor,applyBuild,hasRoadAccess,pops,prevMesh,musicTick,scheduleStep,buildMusicChain,news,cityIssues,checkIssues,doIssueAction,setTrayMin,get issuesNow(){return issuesNow},setIssueToasts(v){issueToastsOn=v},richToast,wpos,sun,machines,ducks,capys,butterflies,planes,harvestMachine,spawnDucks,spawnCapys,spawnButterflies,computeCropBonus,cropGrow,cropVal,industryRate,cityBoost,spinnersY,beams,CATS,computeStats,near,anchorOf,fpTiles,fitAt,isMulti,sizeOf,fixFootprints,buildLot,QROT,trains,barriers,closedX,airPlanes,ships,isRail,railInfo,railMask,railLink,stationTrack,lotTile,stationLinked,stationOnLoop,railFlowReverse,pathPoint,updateTransporte,manageTransport,forceAirplane,forceShip,portDock,cityIssues,fpSide,CATS,updateCars,cityBoost,trainReverse,placeTrain,peds,personModel,ROLES,waterTopMat,spawnCar,spawnParked,newTrip,lotSlots,lotTargets,carRoute,slotCar,lotBusy,frontRoad,carModel,updateAnimals,spawnPed,pedSpawnSpots,managePeds,updatePeds,updatePessoas,updateSignals,carLight,walkOk,isJunction,isSignal,signalLamps,pedCrossing,pedRoute,get sigT(){return sigT},sigSet,redLeft,onWalk,checkIssues,tryVisit,lotSeats,seatsTaken,bridgeProfile,bridgeRuns,bridgeH,bridgePart,deckLift,lowBridge,shipPath,shipChannel,shipLine,waterShore,wxSlot,WX_SLOT,spawnMudanca,cityEntrance,arrivalInfo,upgradeOf,doUpgrade,UPGRADE,nearPop,fpCenter,brazukaLogoMat,metroNear,arrivalsPerCycle,openObra,spawnEsp,manageEmergencia,animalGap,ANIMAL_SHAPE,sitPose,bench,mulberry,tube,addGente,chicken,personModel,cow,horse,sheep,ZOO_MAKE,roadModel,planeModel,shipModel,winMat,lampMat,tailMat,ESP,hasSlots,upgradeGain,brl,genAt,face,set sigT(v){sigT=v},refreshObj,forcePlane,EVT,eventoDe,checkEventos,NUVEM,CONTA,DEMO,demoAtiva,demoCheia,nuvemOk,lerRetornoLogin,abrirConta,guardarNaNuvem,marcaCompleto,renderPillConta,setEvento,evtOff,updateEventos,luzMats,blocos,fantasiaDe,caipiraDe,fatorDiaria,scene,objs,pascoaDia,fogos,updateVidaNova,cityList,saveCitySlot,deleteCity,loadCity,migrateCities,cityKey,newWorld,genWorld,WORLDS,WORLD_ORDER,weatherSeen,get booted(){return RV.booted},get fatal(){return RV.fatal},
     ECON,MODES,TITLES,GOALS,TIER,unlocked,tierOf,titleForPop,titleNeed,progressTick,priceOf,modeOf,lockText,
     groundAt,get landSel(){return landSel},closePanel,OFF,START,BLK,NBK,I0,LAND,owned,blockOf,startOwn,buyLand,landPrice,landState,landInfo,landRing,refreshLand,openLand,landSigns,landVeil,ownedBounds,genOuter,
     tut,TUT_PASSOS,tutStart,tutStop,tutTick,tutConclui,tutNaNova,tutLugar,genMap,MCTX,ESTILOS,modeloDe,panelKind:()=>panelKind,openPanel,
