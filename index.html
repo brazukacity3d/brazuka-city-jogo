@@ -6181,8 +6181,8 @@ function tutFesta(){const fx=$('#fx');if(!fx)return;const cores=['#f2b632','#4f8
    sem `NUVEM.url`, nada disso aparece; com `NUVEM.venda` falso, ninguém tem trava de demonstração.
    O servidor (tabelas e funções) fica em tools/supabase/, com o passo a passo para ligar. */
 
-// configuração (o jogador ainda não criou as contas: fica vazio e desligado)
-const NUVEM=Object.assign({url:'',chave:'',venda:false,preco:4.90,hosts:['brazukacity3d.github.io','localhost','127.0.0.1'],forca:false},(typeof window!=='undefined'&&window.__NUVEM)||{});
+// configuração: projeto do Supabase em São Paulo (a chave é a pública, "publishable"; a venda continua desligada)
+const NUVEM=Object.assign({url:'https://swvsviatoyfsiwldrkat.supabase.co',chave:'sb_publishable_iH2kiU47EXFtArINHR9F3w_SxC9n214',venda:false,preco:4.90,hosts:['brazukacity3d.github.io','localhost','127.0.0.1'],forca:false},(typeof window!=='undefined'&&window.__NUVEM)||{});
 // a página do jogo no claude.ai não deixa falar com outros servidores: a conta só aparece no link próprio
 const nuvemOk=()=>!!(NUVEM.url&&NUVEM.chave&&(NUVEM.forca||NUVEM.hosts.includes(location.hostname)));
 // limites da demonstração (plano de venda revisto em 21/11)
