@@ -6197,7 +6197,8 @@ async function nuvem(path,o={},tentou){if(!nuvemOk())throw new Error('nuvem desl
   const h={apikey:NUVEM.chave,'Content-Type':'application/json',...(o.headers||{})};if(logado())h.Authorization='Bearer '+CONTA.sessao.access_token;
   const r=await fetch(NUVEM.url+path,{method:o.method||'GET',headers:h,body:o.body!=null?JSON.stringify(o.body):undefined});
   if(r.status===401&&logado()&&!tentou&&await renovar())return nuvem(path,o,true);
-  if(!r.ok){let m='';try{m=(await r.json()).msg||''}catch(e){}throw new Error(m||('erro '+r.status))}
+  // BUG-072: a mensagem do servidor (PostgREST manda em message) vai junto, para dizer o motivo da falha
+  if(!r.ok){let m='';try{const j=await r.json();m=j.message||j.msg||j.error_description||j.error||''}catch(e){}throw new Error(m||('erro '+r.status))}
   const t=await r.text();return t?JSON.parse(t):null}
 function guardaSessao(s){CONTA.sessao=s;store.set('bc:sessao',s)}
 async function renovar(){try{const r=await fetch(NUVEM.url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:NUVEM.chave,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:CONTA.sessao.refresh_token})});
@@ -6236,7 +6237,8 @@ async function listaNuvem(){if(!logado())return[];return await nuvem('/rest/v1/s
 async function baixarDaNuvem(id){const r=await nuvem(`/rest/v1/saves?select=dados&cidade=eq.${encodeURIComponent(id)}`);const d=r&&r[0]&&r[0].dados;if(!validSave(d))throw new Error('Essa cidade da nuvem não abriu.');
   saveCitySlot(d);startGame(deserialize(d),false);return true}
 // salvar no aparelho também guarda na nuvem (no máximo uma vez por minuto)
-function nuvemDepoisDeSalvar(){if(!logado()||!game.active||!W)return;if(Date.now()-CONTA.ultimo<60000)return;CONTA.ultimo=Date.now();guardarNaNuvem([W.id]).catch(()=>{})}
+// BUG-072: o intervalo de um minuto conta a tentativa (CONTA.tentou); "Guardado" (CONTA.ultimo) só depois de gravar de verdade
+function nuvemDepoisDeSalvar(){if(!logado()||!game.active||!W)return;if(Date.now()-(CONTA.tentou||0)<60000)return;CONTA.tentou=Date.now();guardarNaNuvem([W.id]).catch(()=>{})}
 
 /* ---------- tela da conta ---------- */
 function abrirConta(motivo){$('#menu').hidden=true;$('#conta').hidden=false;CONTA.motivo=motivo||null;renderConta();if(logado())lerJogador().then(renderConta)}
@@ -6262,12 +6264,12 @@ async function renderConta(){const box=$('#contaBody');if(!box||$('#conta').hidd
   box.innerHTML=h;ligaConta();
   if(logado())listaNuvem().then(L=>{const el=$('#contaNuvem');if(!el)return;const loc=new Set(cityList().map(e=>e.id));
     el.innerHTML=L.length?L.map(c=>`<div class="conta-cid"><span><b>${esc(c.nome)}</b><small>${esc(String(c.pop||0))} moradores${loc.has(c.cidade)?' · também neste aparelho':''}</small></span><button class="big" data-baixar="${esc(c.cidade)}"><b>${loc.has(c.cidade)?'Abrir a da nuvem':'Baixar'}</b></button></div>`).join(''):'<p class="conta-msg">Nenhuma cidade na nuvem ainda.</p>';
-    el.querySelectorAll('[data-baixar]').forEach(b=>b.onclick=async()=>{try{await baixarDaNuvem(b.dataset.baixar);$('#conta').hidden=true}catch(e){toast(e.message,true)}})}).catch(()=>{const el=$('#contaNuvem');if(el)el.innerHTML='<p class="conta-msg">Não deu para ler a nuvem agora.</p>'})}
+    el.querySelectorAll('[data-baixar]').forEach(b=>b.onclick=async()=>{try{await baixarDaNuvem(b.dataset.baixar);$('#conta').hidden=true}catch(e){toast(e.message,true)}})}).catch(e=>{const el=$('#contaNuvem');if(el)el.innerHTML=`<p class="conta-msg">Não deu para ler a nuvem agora (${esc(e.message)}).</p>`})}
 function ligaConta(){const on=(s,f)=>{const el=$(s);if(el)el.onclick=f};
   on('#contaGoogle',entrarGoogle);
   const f=$('#contaEmailForm');if(f)f.onsubmit=async ev=>{ev.preventDefault();const m=$('#contaMsg');try{const e=await entrarEmail($('#contaEmail').value);m.textContent=`Mandamos um link para ${e}. Abra o link neste aparelho para entrar.`}catch(err){m.textContent=err.message}};
   on('#contaSair',()=>sair());
-  on('#contaGuardar',async()=>{try{const n=await guardarNaNuvem();toast(n?`${n} cidade${n>1?'s':''} guardada${n>1?'s':''} na nuvem.`:'Nenhuma cidade salva neste aparelho ainda.');renderConta()}catch(e){toast('Não deu para guardar na nuvem agora.',true)}});
+  on('#contaGuardar',async()=>{try{const n=await guardarNaNuvem();toast(n?`${n} cidade${n>1?'s':''} guardada${n>1?'s':''} na nuvem.`:'Nenhuma cidade salva neste aparelho ainda.');renderConta()}catch(e){toast('Não deu para guardar na nuvem: '+e.message,true)}});
   on('#contaPagar',async()=>{const m=$('#contaPagarMsg');if(!$('#contaMaior').checked){m.textContent='A compra é só para maiores de 18 anos.';return}m.textContent='Gerando o Pix…';try{await pagarPix()}catch(e){m.textContent=e.message||'Não deu para gerar o Pix agora.'}});
   on('#pixCopiar',async()=>{try{await navigator.clipboard.writeText(CONTA.pix.qr);toast('Código copiado.')}catch(e){const t=$('#pixCodigo');t.select();toast('Selecionei o código: copie com Ctrl+C.')}})}
 // botão da conta no menu (só aparece com o servidor ligado)
