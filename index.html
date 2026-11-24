@@ -5940,14 +5940,15 @@ function drawPreviewData(c,m,seed){const S=START;if(!c)return;const x=c.getConte
 
 /* ================= Miniaturas dos itens ================= */
 const THUMBS={};
-function makeThumbs(onProgress){
+function makeThumbs(onProgress,soIds){
+  onProgress=onProgress||(()=>{});
   return new Promise(res=>{
     // BUG-014: se o navegador recusar um segundo contexto WebGL, o jogo segue sem miniaturas
     let tr;try{tr=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true})}catch(e){console.warn('Miniaturas desligadas:',e);res();return}tr.setSize(116,116);tr.setPixelRatio(1);
     const sc=new THREE.Scene();sc.add(new THREE.HemisphereLight('#ffffff','#7f8f5f',.75));const dl=new THREE.DirectionalLight('#fff4e0',.75);dl.position.set(3,6,4);sc.add(dl);
     const oc=new THREE.OrthographicCamera(-1,1,1,-1,.1,50);
     // DEC-030: as moradias ganham também a miniatura de cada estilo (chave 'casa@nordeste')
-    const ids=ORDER.slice();for(const e of ESTILOS)if(e.id!=='classico')for(const m of ESTILO_ITENS)ids.push(m+'@'+e.id);let k=0;
+    const ids=soIds?soIds.slice():ORDER.slice();if(!soIds)for(const e of ESTILOS)if(e.id!=='classico')for(const m of ESTILO_ITENS)ids.push(m+'@'+e.id);let k=0;
     function one(){if(k>=ids.length){tr.dispose();res();return}const key=ids[k++],[id,est]=key.split('@');const d=ITEMS[id];const g=new THREE.Group();
       RB(g,1,.16,1,id==='lago'?'#6aa9cc':d.crop?'#7b5a3c':['coqueiro'].includes(id)?'#e4d3a2':'#a3c77f',0,-.16,0,.05);RB(g,1,.14,1,'#7a5e43',0,-.3,0,.05);
       if(d.road)g.add(roadModel(d,{n:true,s:true},false));else if(d.crop)g.add(cropModel(id,3,mulberry(5)));else if(d.make){const m=modeloDe(d,mulberry(11),est||'classico');m.position.x=0;m.position.z=0;g.add(m)}
@@ -6182,7 +6183,10 @@ function tutFesta(){const fx=$('#fx');if(!fx)return;const cores=['#f2b632','#4f8
    O servidor (tabelas e funções) fica em tools/supabase/, com o passo a passo para ligar. */
 
 // configuração: projeto do Supabase em São Paulo (a chave é a pública, "publishable"; a venda continua desligada)
+// DEC-033: no arquivo de demonstração (tools/pago.mjs) o conteúdo pago vem do servidor; ali a venda está sempre ligada
+const BUILD_DEMO=typeof window!=='undefined'&&!!window.__BUILD_DEMO;
 const NUVEM=Object.assign({url:'https://swvsviatoyfsiwldrkat.supabase.co',chave:'sb_publishable_iH2kiU47EXFtArINHR9F3w_SxC9n214',venda:false,preco:4.90,hosts:['brazukacity3d.github.io','localhost','127.0.0.1'],forca:false},(typeof window!=='undefined'&&window.__NUVEM)||{});
+if(BUILD_DEMO)NUVEM.venda=true;
 // a página do jogo no claude.ai não deixa falar com outros servidores: a conta só aparece no link próprio
 const nuvemOk=()=>!!(NUVEM.url&&NUVEM.chave&&(NUVEM.forca||NUVEM.hosts.includes(location.hostname)));
 // limites da demonstração (plano de venda revisto em 21/11)
@@ -6221,7 +6225,7 @@ const uid=()=>CONTA.sessao&&CONTA.sessao.user&&CONTA.sessao.user.id;
 /* ---------- jogo completo ---------- */
 async function lerJogador(){if(!logado()||!uid())return null;try{const r=await nuvem(`/rest/v1/jogadores?select=completo,desde&user_id=eq.${uid()}`);CONTA.jogador=r&&r[0]||{completo:false};
     marcaCompleto(!!CONTA.jogador.completo)}catch(e){}return CONTA.jogador}
-function marcaCompleto(v){const antes=CONTA.completo;CONTA.completo=v;store.set('bc:completo',v);if(v&&!antes){if(typeof renderItems==='function'&&game.active)renderItems();renderPillConta()}}
+function marcaCompleto(v){const antes=CONTA.completo;CONTA.completo=v;store.set('bc:completo',v);if(v&&BUILD_DEMO&&!PACOTE.carregado)baixarPacote();if(v&&!antes){if(typeof renderItems==='function'&&game.active)renderItems();renderPillConta()}}
 // cria o Pix no servidor (função criar-pix) e espera a confirmação do pagamento
 async function pagarPix(){if(!logado())throw new Error('Entre na sua conta para comprar.');const r=await nuvem('/functions/v1/criar-pix',{method:'POST',body:{}});
   CONTA.pix={id:r.id,qr:r.qr_code,img:r.qr_code_base64,expira:r.expira||null,t0:Date.now()};renderConta();esperarPagamento();return CONTA.pix}
@@ -6277,7 +6281,43 @@ function renderPillConta(){const p=$('#pillConta');if(!p)return;p.hidden=!nuvemO
   const b=$('#btnCompleto');if(b)b.hidden=!demoAtiva()}
 function iniciaConta(){renderPillConta();const p=$('#pillConta');if(p)p.onclick=()=>{audioInit&&audioInit();abrirConta()};const b=$('#btnCompleto');if(b)b.onclick=()=>abrirConta();
   const v=$('#contaBack');if(v)v.onclick=fecharConta;
-  if(nuvemOk()){lerRetornoLogin().then(ok=>{if(!ok&&logado())lerJogador().then(renderPillConta)})}}
+  if(nuvemOk()){lerRetornoLogin().then(ok=>{if(!ok&&logado())lerJogador().then(renderPillConta)})}
+  // quem já comprou baixa o pacote logo ao abrir (vem do cache do aparelho quando dá)
+  if(BUILD_DEMO&&CONTA.completo&&logado())baixarPacote()}
+
+/* ================= Conteúdo do jogo completo vindo do servidor (DEC-033) =================
+   No arquivo de demonstração, o modelo das construções pagas, a planta dos terrenos pagos e os estilos Nordeste e Mineiro
+   não existem: no lugar fica um marcador (lote cercado com placa). Quem comprou baixa o pacote (função conteudo do Supabase),
+   que roda aqui dentro com eval direto (assim enxerga as funções do jogo) e troca os marcadores pelos modelos de verdade. */
+const PAGO_MAKES={},PAGO_FITS={};const PACOTE={carregado:!BUILD_DEMO,carregando:null};
+function pagoMake(id){return r=>PAGO_MAKES[id]?PAGO_MAKES[id](r):modeloPago(id)}
+function pagoFit(id){return(r,w,d)=>PAGO_FITS[id]?PAGO_FITS[id](r,w,d):lotePago(id,w,d)}
+// marcador: lote cercado, de terra, com a placa do jogo completo
+function placaPago(g,x,z,s){C(g,.03*s,.32*s,.03*s,'#7a5434',x-.12*s,0,z);C(g,.03*s,.32*s,.03*s,'#7a5434',x+.12*s,0,z);RB(g,.34*s,.2*s,.03*s,'#2f9e5a',x,.2*s,z+.01,.02*s);
+  RB(g,.1*s,.08*s,.035*s,'#f6c02c',x,.24*s,z+.02,.01*s);ring(g,.03*s,.008*s,'#f6c02c',x,.335*s,z+.02,false)}
+function cercaPago(g,w,d){const ex=w/2-.04,ez=d/2-.04;for(const[a,b]of[[[-ex,-ez],[ex,-ez]],[[ex,-ez],[ex,ez]],[[ex,ez],[-ex,ez]],[[-ex,ez],[-ex,-ez]]]){const L=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.max(2,Math.round(L/.18));
+  for(let k=0;k<=n;k++)C(g,.025,.16,.025,'#9a7b5a',a[0]+(b[0]-a[0])*k/n,0,a[1]+(b[1]-a[1])*k/n);const t=B(g,L,.025,.015,'#b89a5a',(a[0]+b[0])/2,.11,(a[1]+b[1])/2);t.rotation.y=-Math.atan2(b[1]-a[1],b[0]-a[0])}}
+function modeloPago(id){const g=new THREE.Group();g.userData.pago=1;RB(g,.92,.03,.92,'#c9a46a',0,0,0,.02);cercaPago(g,.92,.92);placaPago(g,0,.1,1);return g}
+function lotePago(id,w,d){const g=new THREE.Group();g.userData.pago=1;RB(g,w-.06,.03,d-.06,'#c9a46a',0,0,0,.02);cercaPago(g,w-.06,d-.06);placaPago(g,0,.1,Math.min(w,d)*.9);return g}
+// roda o pacote aqui dentro (eval direto: enxerga as funções e constantes do jogo)
+function rodarPacote(src){eval(src)}
+const versaoJogo=()=>BUILD_DEMO&&window.__BUILD_DEMO.versao||'';
+async function baixarPacote(){if(!BUILD_DEMO||PACOTE.carregado)return true;if(PACOTE.carregando)return PACOTE.carregando;
+  PACOTE.carregando=(async()=>{let src=null;const cache=store.get('bc:pacote',null);
+    if(cache&&cache.uid===uid()&&cache.v===versaoJogo())src=cache.src;
+    if(!src){const h={apikey:NUVEM.chave};if(logado())h.Authorization='Bearer '+CONTA.sessao.access_token;
+      const r=await fetch(NUVEM.url+'/functions/v1/conteudo',{method:'POST',headers:h});if(!r.ok)throw new Error('o servidor não entregou o jogo completo ('+r.status+')');src=await r.text();
+      const v=(/^\/\*PAGO:([\d.]+)\*\//.exec(src)||[])[1];if(!v)throw new Error('pacote inválido');if(versaoJogo()&&v!==versaoJogo())throw new Error('pacote de outra versão ('+v+')');
+      try{store.set('bc:pacote',{uid:uid(),v,src})}catch(e){}}
+    rodarPacote(src);aplicarPacote();return true})();
+  try{return await PACOTE.carregando}catch(e){PACOTE.carregando=null;if(typeof toast==='function')toast('Não deu para baixar o jogo completo agora: '+e.message,true);return false}}
+// troca os marcadores: limpa os modelos guardados, refaz as miniaturas e redesenha a cidade
+function aplicarPacote(){PACOTE.carregado=true;const ids=Object.keys(PAGO_MAKES);
+  // as chaves são m:id:variante (keyFor); estilos mudam também as moradias grátis, então todo modelo de construção é refeito (e o trilho, t:)
+  for(const k of[...modelCache.keys()])if(k.startsWith('m:')||k.startsWith('t:'))modelCache.delete(k);
+  if(typeof W!=='undefined'&&W&&W.b)for(let i=0;i<N*N;i++)if(W.b[i])refreshObj(i,false);
+  const th=ids.slice();for(const e of ESTILOS)if(e.id!=='classico')for(const m of ESTILO_ITENS)th.push(m+'@'+e.id);
+  makeThumbs(null,th).then(()=>{if(game.active&&typeof renderItems==='function')renderItems();if(typeof renderEstiloPick==='function')renderEstiloPick()})}
 
 /* ---- js/12-principal.js ---- */
 'use strict';
@@ -6344,7 +6384,7 @@ if(navigator.webdriver||/[?&]teste\b/.test(location.search)){
     placeAt,removeAt,cloudMat,updateHud,toast,SUN,SEASON,weatherNow,realSunEl,sunPos,brasilia,flushPaint,flushTerra,modelCache,objs,cars,boats,animals,orbitBy,tileSd,terrainHeightAt,
     camera,pickUp,dropAt,cancelCarry,rotateTool,previewAt,setTool,ghostRoot,arrow,toolV,keyFor,variantOf,canMoveTo,get reach(){return reach},
     renderer,tufts,PREV_MAX,TUFT_MAX,modelKey,SEASONS,seasonOf,brasiliaAt,clockText,dateText,isNight,genAt,prefs,updateLighting,resetNorth,EL_DEF,
-    setClock(ms){clockOverride=ms;_bCache=null;_rsT=-1e12;refreshSeason();checkSeasonVisuals();if(typeof checkEventos==='function'&&W)checkEventos();updateLighting(.016,0)},setWeather(k){weatherForce=k},popMoney,audioInit,THUMBS,ORDER,canPlace,planFor,applyBuild,hasRoadAccess,pops,prevMesh,musicTick,scheduleStep,buildMusicChain,news,cityIssues,checkIssues,doIssueAction,setTrayMin,get issuesNow(){return issuesNow},setIssueToasts(v){issueToastsOn=v},richToast,wpos,sun,machines,ducks,capys,butterflies,planes,harvestMachine,spawnDucks,spawnCapys,spawnButterflies,computeCropBonus,cropGrow,cropVal,industryRate,cityBoost,spinnersY,beams,CATS,computeStats,near,anchorOf,fpTiles,fitAt,isMulti,sizeOf,fixFootprints,buildLot,QROT,trains,barriers,closedX,airPlanes,ships,isRail,railInfo,railMask,railLink,stationTrack,lotTile,stationLinked,stationOnLoop,railFlowReverse,pathPoint,updateTransporte,manageTransport,forceAirplane,forceShip,portDock,cityIssues,fpSide,CATS,updateCars,cityBoost,trainReverse,placeTrain,peds,personModel,ROLES,waterTopMat,spawnCar,spawnParked,newTrip,lotSlots,lotTargets,carRoute,slotCar,lotBusy,frontRoad,carModel,updateAnimals,spawnPed,pedSpawnSpots,managePeds,updatePeds,updatePessoas,updateSignals,carLight,walkOk,isJunction,isSignal,signalLamps,pedCrossing,pedRoute,get sigT(){return sigT},sigSet,redLeft,onWalk,checkIssues,tryVisit,lotSeats,seatsTaken,bridgeProfile,bridgeRuns,bridgeH,bridgePart,deckLift,lowBridge,shipPath,shipChannel,shipLine,waterShore,wxSlot,WX_SLOT,spawnMudanca,cityEntrance,arrivalInfo,upgradeOf,doUpgrade,UPGRADE,nearPop,fpCenter,brazukaLogoMat,metroNear,arrivalsPerCycle,openObra,spawnEsp,manageEmergencia,animalGap,ANIMAL_SHAPE,sitPose,bench,mulberry,tube,addGente,chicken,personModel,cow,horse,sheep,ZOO_MAKE,roadModel,planeModel,shipModel,winMat,lampMat,tailMat,ESP,hasSlots,upgradeGain,brl,genAt,face,set sigT(v){sigT=v},refreshObj,forcePlane,EVT,eventoDe,checkEventos,NUVEM,CONTA,DEMO,demoAtiva,demoCheia,nuvemOk,lerRetornoLogin,abrirConta,guardarNaNuvem,marcaCompleto,renderPillConta,setEvento,evtOff,updateEventos,luzMats,blocos,fantasiaDe,caipiraDe,fatorDiaria,scene,objs,pascoaDia,fogos,updateVidaNova,cityList,saveCitySlot,deleteCity,loadCity,migrateCities,cityKey,newWorld,genWorld,WORLDS,WORLD_ORDER,weatherSeen,get booted(){return RV.booted},get fatal(){return RV.fatal},
+    setClock(ms){clockOverride=ms;_bCache=null;_rsT=-1e12;refreshSeason();checkSeasonVisuals();if(typeof checkEventos==='function'&&W)checkEventos();updateLighting(.016,0)},setWeather(k){weatherForce=k},popMoney,audioInit,THUMBS,ORDER,canPlace,planFor,applyBuild,hasRoadAccess,pops,prevMesh,musicTick,scheduleStep,buildMusicChain,news,cityIssues,checkIssues,doIssueAction,setTrayMin,get issuesNow(){return issuesNow},setIssueToasts(v){issueToastsOn=v},richToast,wpos,sun,machines,ducks,capys,butterflies,planes,harvestMachine,spawnDucks,spawnCapys,spawnButterflies,computeCropBonus,cropGrow,cropVal,industryRate,cityBoost,spinnersY,beams,CATS,computeStats,near,anchorOf,fpTiles,fitAt,isMulti,sizeOf,fixFootprints,buildLot,QROT,trains,barriers,closedX,airPlanes,ships,isRail,railInfo,railMask,railLink,stationTrack,lotTile,stationLinked,stationOnLoop,railFlowReverse,pathPoint,updateTransporte,manageTransport,forceAirplane,forceShip,portDock,cityIssues,fpSide,CATS,updateCars,cityBoost,trainReverse,placeTrain,peds,personModel,ROLES,waterTopMat,spawnCar,spawnParked,newTrip,lotSlots,lotTargets,carRoute,slotCar,lotBusy,frontRoad,carModel,updateAnimals,spawnPed,pedSpawnSpots,managePeds,updatePeds,updatePessoas,updateSignals,carLight,walkOk,isJunction,isSignal,signalLamps,pedCrossing,pedRoute,get sigT(){return sigT},sigSet,redLeft,onWalk,checkIssues,tryVisit,lotSeats,seatsTaken,bridgeProfile,bridgeRuns,bridgeH,bridgePart,deckLift,lowBridge,shipPath,shipChannel,shipLine,waterShore,wxSlot,WX_SLOT,spawnMudanca,cityEntrance,arrivalInfo,upgradeOf,doUpgrade,UPGRADE,nearPop,fpCenter,brazukaLogoMat,metroNear,arrivalsPerCycle,openObra,spawnEsp,manageEmergencia,animalGap,ANIMAL_SHAPE,sitPose,bench,mulberry,tube,addGente,chicken,personModel,cow,horse,sheep,ZOO_MAKE,roadModel,planeModel,shipModel,winMat,lampMat,tailMat,ESP,hasSlots,upgradeGain,brl,genAt,face,set sigT(v){sigT=v},refreshObj,forcePlane,EVT,eventoDe,checkEventos,NUVEM,CONTA,DEMO,PACOTE,baixarPacote,lerJogador,demoAtiva,demoCheia,nuvemOk,lerRetornoLogin,abrirConta,guardarNaNuvem,marcaCompleto,renderPillConta,setEvento,evtOff,updateEventos,luzMats,blocos,fantasiaDe,caipiraDe,fatorDiaria,scene,objs,pascoaDia,fogos,updateVidaNova,cityList,saveCitySlot,deleteCity,loadCity,migrateCities,cityKey,newWorld,genWorld,WORLDS,WORLD_ORDER,weatherSeen,get booted(){return RV.booted},get fatal(){return RV.fatal},
     ECON,MODES,TITLES,GOALS,TIER,unlocked,tierOf,titleForPop,titleNeed,progressTick,priceOf,modeOf,lockText,
     groundAt,get landSel(){return landSel},closePanel,OFF,START,BLK,NBK,I0,LAND,owned,blockOf,startOwn,buyLand,landPrice,landState,landInfo,landRing,refreshLand,openLand,landSigns,landVeil,ownedBounds,genOuter,
     tut,TUT_PASSOS,tutStart,tutStop,tutTick,tutConclui,tutNaNova,tutLugar,genMap,MCTX,ESTILOS,modeloDe,panelKind:()=>panelKind,openPanel,
